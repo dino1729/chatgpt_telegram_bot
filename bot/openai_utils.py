@@ -1,3 +1,4 @@
+from gettext import translation
 import config
 
 import tiktoken
@@ -193,21 +194,18 @@ class ChatGPT:
 # Define the function
 async def transcribe_audio(audio_file):
     # Create an instance of a speech config with your subscription key and region
-    speech_config = speechsdk.translation.SpeechTranslationConfig(subscription=azurespeechkey, region=azurespeechregion)
-    speech_config.speech_recognition_language="en"
-    target_language="en"
-    # Set the output format to English
-    speech_config.add_target_language(target_language)
+    speech_config = speechsdk.SpeechConfig(subscription=azurespeechkey, region=azurespeechregion)
+    speech_config.speech_recognition_language="en-US"
     # Create an audio config from the audio file
-    audio_config = speechsdk.audio.AudioConfig(filename=audio_file)
-    translation_recognizer = speechsdk.translation.TranslationRecognizer(translation_config=speech_config, audio_config=audio_config)
-    translation_recognition_result = translation_recognizer.recognize_once_async().get()
+    audio_config = speechsdk.audio.AudioConfig(filename=str(audio_file))
+    speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config, audio_config=audio_config)
+    
+    speech_recognition_result = speech_recognizer.recognize_once_async().get()
 
-    #if translation_recognition_result.reason == speechsdk.ResultReason.TranslatedSpeech:
-        #print("Recognized: {}".format(translation_recognition_result.text))
-        #print("""Translated into '{}': {}""".format(target_language, translation_recognition_result.translations[target_language]))
+    if speech_recognition_result.reason == speechsdk.ResultReason.RecognizedSpeech:
+        print("Recognized: {}".format(speech_recognition_result.text))
 
-    return translation_recognition_result.translations[target_language]
+    return speech_recognition_result.text
 
 
 async def generate_images(prompt, n_images=4):

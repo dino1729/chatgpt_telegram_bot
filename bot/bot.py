@@ -350,16 +350,18 @@ async def voice_message_handle(update: Update, context: CallbackContext):
         voice_file = await context.bot.get_file(voice.file_id)
         await voice_file.download_to_drive(voice_ogg_path)
 
-        # convert to mp3
-        voice_mp3_path = tmp_dir / "voice.mp3"
-        pydub.AudioSegment.from_file(voice_ogg_path).export(voice_mp3_path, format="mp3")
+        # convert to wav
+        voice_wav_path = tmp_dir / "voice.wav"
+        #pydub.AudioSegment.from_file(voice_ogg_path).export(voice_mp3_path, format="mp3")
+        pydub.AudioSegment.from_file(voice_ogg_path).set_channels(1).set_sample_width(2).set_frame_rate(16000).export(voice_wav_path, format="wav")
 
         # transcribe
-        with open(voice_mp3_path, "rb") as f:
-            transcribed_text = await openai_utils.transcribe_audio(f)
+        # with open(voice_mp3_path, "rb") as f:
+        #     transcribed_text = await openai_utils.transcribe_audio(f)
 
-            if transcribed_text is None:
-                 transcribed_text = ""
+        #     if transcribed_text is None:
+        #          transcribed_text = ""
+        transcribed_text = await openai_utils.transcribe_audio(voice_wav_path)
 
     text = f"🎤: <i>{transcribed_text}</i>"
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
