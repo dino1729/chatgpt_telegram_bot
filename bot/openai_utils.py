@@ -36,7 +36,7 @@ class ChatGPT:
                 if self.model in {"gpt-3.5-turbo", "gpt-4"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     r = await openai.ChatCompletion.acreate(
-                        model=self.model,
+                        engine="gpt-3p5-turbo",
                         messages=messages,
                         **OPENAI_COMPLETION_OPTIONS
                     )
