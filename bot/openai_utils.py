@@ -192,20 +192,49 @@ class ChatGPT:
 #     return r["text"]
 
 # Define the function
+# async def transcribe_audio(audio_file):
+#     # Create an instance of a speech config with your subscription key and region
+#     speech_config = speechsdk.SpeechConfig(subscription=azurespeechkey, region=azurespeechregion)
+#     speech_config.speech_recognition_language="en-US"
+#     # Create an audio config from the audio file
+#     audio_config = speechsdk.audio.AudioConfig(filename=str(audio_file))
+#     speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config, audio_config=audio_config)
+    
+#     speech_recognition_result = speech_recognizer.recognize_once_async().get()
+
+#     if speech_recognition_result.reason == speechsdk.ResultReason.RecognizedSpeech:
+#         print("Recognized: {}".format(speech_recognition_result.text))
+
+#     return speech_recognition_result.text
+
+#Transcribe Indian languages to English text
 async def transcribe_audio(audio_file):
     # Create an instance of a speech config with your subscription key and region
-    speech_config = speechsdk.SpeechConfig(subscription=azurespeechkey, region=azurespeechregion)
-    speech_config.speech_recognition_language="en-US"
-    # Create an audio config from the audio file
+    # Currently the v2 endpoint is required. In a future SDK release you won't need to set it. 
+    endpoint_string = "wss://{}.stt.speech.microsoft.com/speech/universal/v2".format(azurespeechregion)
+    #speech_config = speechsdk.translation.SpeechTranslationConfig(subscription=azurespeechkey, endpoint=endpoint_string)
     audio_config = speechsdk.audio.AudioConfig(filename=str(audio_file))
-    speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config, audio_config=audio_config)
-    
-    speech_recognition_result = speech_recognizer.recognize_once_async().get()
+    # set up translation parameters: source language and target languages
+    # Currently the v2 endpoint is required. In a future SDK release you won't need to set it. 
+    #endpoint_string = "wss://{}.stt.speech.microsoft.com/speech/universal/v2".format(service_region)
+    translation_config = speechsdk.translation.SpeechTranslationConfig(
+        subscription=azurespeechkey,
+        endpoint=endpoint_string,
+        speech_recognition_language='en-US',
+        target_languages=('en','hi','te'))
+    #audio_config = speechsdk.audio.AudioConfig(filename=weatherfilename)
+    # Specify the AutoDetectSourceLanguageConfig, which defines the number of possible languages
+    auto_detect_source_language_config = speechsdk.languageconfig.AutoDetectSourceLanguageConfig(languages=["en-US", "hi-IN", "te-IN"])
+    # Creates a translation recognizer using and audio file as input.
+    recognizer = speechsdk.translation.TranslationRecognizer(
+        translation_config=translation_config, 
+        audio_config=audio_config,
+        auto_detect_source_language_config=auto_detect_source_language_config)
+    result = recognizer.recognize_once()
 
-    if speech_recognition_result.reason == speechsdk.ResultReason.RecognizedSpeech:
-        print("Recognized: {}".format(speech_recognition_result.text))
+    translated_result = format(result.translations['en'])
 
-    return speech_recognition_result.text
+    return translated_result
 
 
 async def generate_images(prompt, n_images=4):
