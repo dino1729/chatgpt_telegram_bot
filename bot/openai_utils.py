@@ -1,5 +1,7 @@
 from gettext import translation
+import re
 import config
+import uuid, requests
 
 import tiktoken
 import openai
@@ -11,6 +13,7 @@ openai.api_version = "2023-03-15-preview"
 
 azurespeechkey = config.azurespeechkey
 azurespeechregion = config.azurespeechregion
+azuretexttranslatorkey = config.azuretexttranslatorkey
 
 OPENAI_COMPLETION_OPTIONS = {
     "temperature": 0.7,
@@ -233,9 +236,59 @@ async def transcribe_audio(audio_file):
     result = recognizer.recognize_once()
 
     translated_result = format(result.translations['en'])
+    detectedSrcLang = format(result.properties[speechsdk.PropertyId.SpeechServiceConnection_AutoDetectSourceLanguageResult])
 
-    return translated_result
+    return translated_result, detectedSrcLang
 
+async def translate_text(text, target_language):
+    
+    # Add your key and endpoint
+    key = azuretexttranslatorkey
+    endpoint = "https://api.cognitive.microsofttranslator.com"
+    # location, also known as region.
+    location = azurespeechregion
+    path = '/translate'
+    constructed_url = endpoint + path
+    params = {
+        'api-version': '3.0',
+        'from': 'en',
+        'to': [target_language]
+    }
+    headers = {
+        'Ocp-Apim-Subscription-Key': key,
+        # location required if you're using a multi-service or regional (not global) resource.
+        'Ocp-Apim-Subscription-Region': location,
+        'Content-type': 'application/json',
+        'X-ClientTraceId': str(uuid.uuid4())
+    }
+    # You can pass more than one object in body.
+    body = [{
+        'text': text
+    }]
+    request = requests.post(constructed_url, params=params, headers=headers, json=body)
+    response = request.json()
+    return response[0]['translations'][0]['text']
+
+async def text_to_speech(text, output_path, language):
+    speech_config = speechsdk.SpeechConfig(subscription=azurespeechkey, region=azurespeechregion)
+    # Set the voice based on the language
+    if language == "te-IN":
+        speech_config.speech_synthesis_voice_name = "te-IN-ShrutiNeural"
+    elif language == "hi-IN":
+        speech_config.speech_synthesis_voice_name = "hi-IN-SwaraNeural"
+    else:
+        # Use a default voice if the language is not specified or unsupported
+        speech_config.speech_synthesis_voice_name = "en-US-AriaNeural"
+    # Use the default speaker as audio output.
+    speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=None)
+    result = speech_synthesizer.speak_text_async(text).get()
+    if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+        # Get the audio data from the result object
+        audio_data = result.audio_data  
+        # Save the audio data as a WAV file
+        with open(output_path, "wb") as audio_file:
+            audio_file.write(audio_data)
+            #print("Speech synthesized and saved to WAV file.")
 
 async def generate_images(prompt, n_images=4):
     r = await openai.Image.acreate(prompt=prompt, n=n_images, size="512x512")

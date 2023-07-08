@@ -16,6 +16,7 @@ telegram_token = config_yaml["telegram_token"]
 openai_api_key = config_yaml["openai_api_key"]
 azurespeechkey = config_yaml["azurespeechkey"]
 azurespeechregion = config_yaml["azurespeechregion"]
+azuretexttranslatorkey = config_yaml["azuretexttranslatorkey"]
 
 use_chatgpt_api = config_yaml.get("use_chatgpt_api", True)
 allowed_telegram_usernames = config_yaml["allowed_telegram_usernames"]
