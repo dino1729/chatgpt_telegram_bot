@@ -25,8 +25,8 @@ OPENAI_COMPLETION_OPTIONS = {
 
 
 class ChatGPT:
-    def __init__(self, model="gpt-3.5-turbo"):
-        assert model in {"text-davinci-003", "gpt-3.5-turbo", "gpt-4"}, f"Unknown model: {model}"
+    def __init__(self, model="gpt-3p5-turbo-16k"):
+        assert model in {"text-davinci-003", "gpt-3p5-turbo", "gpt-3p5-turbo-16k", "gpt-4"}, f"Unknown model: {model}"
         self.model = model
 
     async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
@@ -37,10 +37,10 @@ class ChatGPT:
         answer = None
         while answer is None:
             try:
-                if self.model in {"gpt-3.5-turbo", "gpt-4"}:
+                if self.model in {"gpt-3p5-turbo", "gpt-3p5-turbo-16k", "gpt-4"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     r = await openai.ChatCompletion.acreate(
-                        engine="gpt-3p5-turbo",
+                        engine=self.model,
                         messages=messages,
                         **OPENAI_COMPLETION_OPTIONS
                     )
@@ -72,15 +72,22 @@ class ChatGPT:
     async def send_message_stream(self, message, dialog_messages=[], chat_mode="assistant"):
         if chat_mode not in config.chat_modes.keys():
             raise ValueError(f"Chat mode {chat_mode} is not supported")
+        
+        # Convert model names for token counting
+        token_count_model = self.model
+        if token_count_model == "gpt-3p5-turbo":
+            token_count_model = "gpt-3.5-turbo"
+        elif token_count_model == "gpt-3p5-turbo-16k":
+            token_count_model = "gpt-3.5-turbo-16k"
 
         n_dialog_messages_before = len(dialog_messages)
         answer = None
         while answer is None:
             try:
-                if self.model in {"gpt-3.5-turbo", "gpt-4"}:
+                if self.model in {"gpt-3p5-turbo", "gpt-3p5-turbo-16k", "gpt-4"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     r_gen = await openai.ChatCompletion.acreate(
-                        engine="gpt-3p5-turbo",
+                        engine=self.model,
                         messages=messages,
                         stream=True,
                         **OPENAI_COMPLETION_OPTIONS
@@ -91,7 +98,7 @@ class ChatGPT:
                         delta = r_item.choices[0].delta
                         if "content" in delta:
                             answer += delta.content
-                            n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=self.model)
+                            n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
                             n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                             yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
                 elif self.model == "text-davinci-003":
@@ -106,7 +113,7 @@ class ChatGPT:
                     answer = ""
                     async for r_item in r_gen:
                         answer += r_item.choices[0].text
-                        n_input_tokens, n_output_tokens = self._count_tokens_from_prompt(prompt, answer, model=self.model)
+                        n_input_tokens, n_output_tokens = self._count_tokens_from_prompt(prompt, answer, model=token_count_model)
                         n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                         yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
 
@@ -156,9 +163,12 @@ class ChatGPT:
     def _count_tokens_from_messages(self, messages, answer, model="gpt-3.5-turbo"):
         encoding = tiktoken.encoding_for_model(model)
 
-        if model == "gpt-3.5-turbo":
+        if model == "gpt-3.5-turbo-16k":
             tokens_per_message = 4  # every message follows <im_start>{role/name}\n{content}<im_end>\n
             tokens_per_name = -1  # if there's a name, the role is omitted
+        elif model == "gpt-3.5-turbo":
+            tokens_per_message = 4
+            tokens_per_name = -1
         elif model == "gpt-4":
             tokens_per_message = 3
             tokens_per_name = 1
@@ -188,27 +198,6 @@ class ChatGPT:
         n_output_tokens = len(encoding.encode(answer))
 
         return n_input_tokens, n_output_tokens
-
-
-# async def transcribe_audio(audio_file):
-#     r = await openai.Audio.atranscribe("whisper-1", audio_file)
-#     return r["text"]
-
-# Define the function
-# async def transcribe_audio(audio_file):
-#     # Create an instance of a speech config with your subscription key and region
-#     speech_config = speechsdk.SpeechConfig(subscription=azurespeechkey, region=azurespeechregion)
-#     speech_config.speech_recognition_language="en-US"
-#     # Create an audio config from the audio file
-#     audio_config = speechsdk.audio.AudioConfig(filename=str(audio_file))
-#     speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config, audio_config=audio_config)
-    
-#     speech_recognition_result = speech_recognizer.recognize_once_async().get()
-
-#     if speech_recognition_result.reason == speechsdk.ResultReason.RecognizedSpeech:
-#         print("Recognized: {}".format(speech_recognition_result.text))
-
-#     return speech_recognition_result.text
 
 #Transcribe Indian languages to English text
 async def transcribe_audio(audio_file):
@@ -294,7 +283,6 @@ async def generate_images(prompt, n_images=4):
     r = await openai.Image.acreate(prompt=prompt, n=n_images, size="512x512")
     image_urls = [item.url for item in r.data]
     return image_urls
-
 
 async def is_content_acceptable(prompt):
     r = await openai.Moderation.acreate(input=prompt)

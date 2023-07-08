@@ -97,7 +97,7 @@ async def register_user_if_not_exists(update: Update, context: CallbackContext, 
     n_used_tokens = db.get_user_attribute(user.id, "n_used_tokens")
     if isinstance(n_used_tokens, int):  # old format
         new_n_used_tokens = {
-            "gpt-3.5-turbo": {
+            "gpt-3.5-turbo-16k": {
                 "n_input_tokens": 0,
                 "n_output_tokens": n_used_tokens
             }
@@ -131,7 +131,6 @@ async def is_bot_mentioned(update: Update, context: CallbackContext):
      else:
          return False
 
-
 async def start_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
     user_id = update.message.from_user.id
@@ -145,13 +144,11 @@ async def start_handle(update: Update, context: CallbackContext):
     await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
     await show_chat_modes_handle(update, context)
 
-
 async def help_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
     user_id = update.message.from_user.id
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
     await update.message.reply_text(HELP_MESSAGE, parse_mode=ParseMode.HTML)
-
 
 async def help_group_chat_handle(update: Update, context: CallbackContext):
      await register_user_if_not_exists(update, context, update.message.from_user)
@@ -162,7 +159,6 @@ async def help_group_chat_handle(update: Update, context: CallbackContext):
 
      await update.message.reply_text(text, parse_mode=ParseMode.HTML)
      await update.message.reply_video(config.help_group_chat_video_path)
-
 
 async def retry_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
@@ -180,7 +176,6 @@ async def retry_handle(update: Update, context: CallbackContext):
     db.set_dialog_messages(user_id, dialog_messages, dialog_id=None)  # last message was removed from the context
 
     await message_handle(update, context, message=last_dialog_message["user"], use_new_dialog_timeout=False)
-
 
 async def message_handle(update: Update, context: CallbackContext, message=None, use_new_dialog_timeout=True):
     # check if bot was mentioned (for group chats)
@@ -469,7 +464,6 @@ async def is_previous_message_not_answered_yet(update: Update, context: Callback
     else:
         return False
 
-
 async def voice_message_handle(update: Update, context: CallbackContext):
     # check if bot was mentioned (for group chats)
     if not await is_bot_mentioned(update, context):
@@ -541,7 +535,6 @@ async def generate_image_handle(update: Update, context: CallbackContext, messag
         await update.message.chat.send_action(action="upload_photo")
         await update.message.reply_photo(image_url, parse_mode=ParseMode.HTML)
 
-
 async def new_dialog_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
     if await is_previous_message_not_answered_yet(update, context): return
@@ -555,7 +548,6 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
     chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
     await update.message.reply_text(f"{config.chat_modes[chat_mode]['welcome_message']}", parse_mode=ParseMode.HTML)
 
-
 async def cancel_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
 
@@ -567,7 +559,6 @@ async def cancel_handle(update: Update, context: CallbackContext):
         task.cancel()
     else:
         await update.message.reply_text("<i>Nothing to cancel...</i>", parse_mode=ParseMode.HTML)
-
 
 def get_chat_mode_menu(page_index: int):
     n_chat_modes_per_page = config.n_chat_modes_per_page
@@ -605,7 +596,6 @@ def get_chat_mode_menu(page_index: int):
 
     return text, reply_markup
 
-
 async def show_chat_modes_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
     if await is_previous_message_not_answered_yet(update, context): return
@@ -615,7 +605,6 @@ async def show_chat_modes_handle(update: Update, context: CallbackContext):
 
     text, reply_markup = get_chat_mode_menu(0)
     await update.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
-
 
 async def show_chat_modes_callback_handle(update: Update, context: CallbackContext):
      await register_user_if_not_exists(update.callback_query, context, update.callback_query.from_user)
@@ -638,7 +627,6 @@ async def show_chat_modes_callback_handle(update: Update, context: CallbackConte
          if str(e).startswith("Message is not modified"):
              pass
 
-
 async def set_chat_mode_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update.callback_query, context, update.callback_query.from_user)
     user_id = update.callback_query.from_user.id
@@ -656,7 +644,6 @@ async def set_chat_mode_handle(update: Update, context: CallbackContext):
         f"{config.chat_modes[chat_mode]['welcome_message']}",
         parse_mode=ParseMode.HTML
     )
-
 
 def get_settings_menu(user_id: int):
     current_model = db.get_user_attribute(user_id, "current_model")
@@ -683,7 +670,6 @@ def get_settings_menu(user_id: int):
 
     return text, reply_markup
 
-
 async def settings_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
     if await is_previous_message_not_answered_yet(update, context): return
@@ -693,7 +679,6 @@ async def settings_handle(update: Update, context: CallbackContext):
 
     text, reply_markup = get_settings_menu(user_id)
     await update.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
-
 
 async def set_settings_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update.callback_query, context, update.callback_query.from_user)
@@ -712,7 +697,6 @@ async def set_settings_handle(update: Update, context: CallbackContext):
     except telegram.error.BadRequest as e:
         if str(e).startswith("Message is not modified"):
             pass
-
 
 async def show_balance_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
@@ -760,12 +744,10 @@ async def show_balance_handle(update: Update, context: CallbackContext):
 
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
-
 async def edited_message_handle(update: Update, context: CallbackContext):
     if update.edited_message.chat.type == "private":
         text = "🥲 Unfortunately, message <b>editing</b> is not supported"
         await update.edited_message.reply_text(text, parse_mode=ParseMode.HTML)
-
 
 async def error_handle(update: Update, context: CallbackContext) -> None:
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
@@ -808,6 +790,8 @@ def run_bot() -> None:
         .token(config.telegram_token)
         .concurrent_updates(True)
         .rate_limiter(AIORateLimiter(max_retries=5))
+        .http_version("1.1")
+        .get_updates_http_version("1.1")
         .post_init(post_init)
         .build()
     )
@@ -843,7 +827,6 @@ def run_bot() -> None:
 
     # start the bot
     application.run_polling()
-
 
 if __name__ == "__main__":
     run_bot()
