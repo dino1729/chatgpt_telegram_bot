@@ -136,3 +136,4 @@ docker-compose.dev.yml
 
 mongodb/
 bot/openai_utils_backup.py
+.DS_Store
