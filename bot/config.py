@@ -14,6 +14,9 @@ config_env = dotenv.dotenv_values(config_dir / "config.env")
 # config parameters
 telegram_token = config_yaml["telegram_token"]
 openai_api_key = config_yaml["openai_api_key"]
+openai_api_base = config_yaml["openai_api_base"]
+openai_api_version = config_yaml["openai_api_version"]
+
 azurespeechkey = config_yaml["azurespeechkey"]
 azurespeechregion = config_yaml["azurespeechregion"]
 azuretexttranslatorkey = config_yaml["azuretexttranslatorkey"]

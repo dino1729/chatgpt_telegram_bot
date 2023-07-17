@@ -1,5 +1,6 @@
 from gettext import translation
 import re
+from sys import api_version
 import config
 import uuid, requests
 
@@ -8,8 +9,8 @@ import openai
 import azure.cognitiveservices.speech as speechsdk
 openai.api_key = config.openai_api_key
 openai.api_type = "azure"
-openai.api_base =  "https://textllmapi.openai.azure.com/"
-openai.api_version = "2023-03-15-preview"
+openai.api_base =  config.openai_api_base
+openai.api_version = config.openai_api_version
 
 azurespeechkey = config.azurespeechkey
 azurespeechregion = config.azurespeechregion
@@ -42,6 +43,7 @@ class ChatGPT:
                     r = await openai.ChatCompletion.acreate(
                         engine=self.model,
                         messages=messages,
+                        api_version="2023-03-15-preview",
                         **OPENAI_COMPLETION_OPTIONS
                     )
                     answer = r.choices[0].message["content"]
@@ -89,6 +91,7 @@ class ChatGPT:
                     r_gen = await openai.ChatCompletion.acreate(
                         engine=self.model,
                         messages=messages,
+                        api_version="2023-03-15-preview",
                         stream=True,
                         **OPENAI_COMPLETION_OPTIONS
                     )
@@ -280,7 +283,12 @@ async def text_to_speech(text, output_path, language):
             #print("Speech synthesized and saved to WAV file.")
 
 async def generate_images(prompt, n_images=4):
-    r = await openai.Image.acreate(prompt=prompt, n=n_images, size="512x512")
+    r = await openai.Image.acreate(
+        prompt=prompt,
+        n=n_images,
+        size="512x512",
+        api_version="2023-06-01-preview"
+        )
     image_urls = [item.url for item in r.data]
     return image_urls
 
