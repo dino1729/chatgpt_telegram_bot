@@ -270,7 +270,7 @@ async def text_to_speech(text, output_path, language):
         speech_config.speech_synthesis_voice_name = "hi-IN-SwaraNeural"
     else:
         # Use a default voice if the language is not specified or unsupported
-        speech_config.speech_synthesis_voice_name = "en-US-AriaNeural"
+        speech_config.speech_synthesis_voice_name = "en-US-NancyNeural"
     # Use the default speaker as audio output.
     speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=None)
     result = speech_synthesizer.speak_text_async(text).get()
