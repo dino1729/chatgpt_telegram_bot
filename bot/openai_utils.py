@@ -29,7 +29,7 @@ from llama_index.indices.postprocessor import SimilarityPostprocessor
 from llama_index.text_splitter import SentenceSplitter
 from llama_index.node_parser import SimpleNodeParser
 
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 #UPLOAD_FOLDER = './data'  # set the upload folder path
