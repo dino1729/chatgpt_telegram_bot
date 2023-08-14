@@ -1,4 +1,4 @@
-available_text_models: ["gpt-3p5-turbo-16k", "gpt-3p5-turbo", "gpt-4", "text-davinci-003"]
+available_text_models: ["gpt-3p5-turbo-16k", "gpt-3p5-turbo", "gpt-4", "text-davinci-003", "cohere", "palm"]
 
 info:
 
@@ -45,6 +45,32 @@ info:
     type: completion
     name: GPT-3.5
     description: GPT-3.5 is a legacy model. Actually there is <b>no reason to use it</b>, because it is more expensive and slower than ChatGPT, but just about as smart.
+
+    price_per_1000_input_tokens: 0.02
+    price_per_1000_output_tokens: 0.02
+
+    scores:
+      Smart: 3
+      Fast: 2
+      Cheap: 3
+  
+  cohere:
+    type: completion
+    name: Cohere
+    description: Cohere is a completion model from Cohere.ai trained on 6B, 13B, 52B parameters. With an author of the <b>Attention is All You Need</b> paper as one of its co-founders, Cohere's LLM is built with a focus on enterprise. Products based on its LLM include semantic search, embeddings, text generation, summarization, and classification.
+
+    price_per_1000_input_tokens: 0.02
+    price_per_1000_output_tokens: 0.02
+
+    scores:
+      Smart: 3
+      Fast: 2
+      Cheap: 3
+    
+  palm:
+    type: chat_completion
+    name: PALM
+    description: PALM is Google's LLM chat product, based on its Pathways Language Model (PaLM) which succeeded LaMDA. This builds upon Google's research in the transformer architecture, Gopher scaling, Chinchilla compute-optimal scaling, and Sparrow dialogue finetuning.
 
     price_per_1000_input_tokens: 0.02
     price_per_1000_output_tokens: 0.02

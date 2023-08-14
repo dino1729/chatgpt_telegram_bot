@@ -1,11 +1,9 @@
-import os
 import logging
 import asyncio
 import traceback
 import html
 import json
 import tempfile
-from chardet import detect
 import pydub
 from pathlib import Path
 from datetime import datetime
@@ -72,7 +70,6 @@ def split_text_into_chunks(text, chunk_size):
     for i in range(0, len(text), chunk_size):
         yield text[i:i + chunk_size]
 
-
 async def register_user_if_not_exists(update: Update, context: CallbackContext, user: User):
     if not db.check_if_user_exists(user.id):
         db.add_new_user(
@@ -111,7 +108,6 @@ async def register_user_if_not_exists(update: Update, context: CallbackContext, 
     # image generation
     if db.get_user_attribute(user.id, "n_generated_images") is None:
         db.set_user_attribute(user.id, "n_generated_images", 0)
-
 
 async def is_bot_mentioned(update: Update, context: CallbackContext):
      try:
@@ -234,18 +230,23 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
             chatgpt_instance = openai_utils.ChatGPT(model=current_model)
             if config.enable_message_streaming:
-                gen = chatgpt_instance.send_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
+                if chat_mode != "internet_connected_assistant":
+                    gen = chatgpt_instance.send_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
+                else:
+                    gen = chatgpt_instance.send_internetmessage(_message, dialog_messages=dialog_messages, chat_mode="internet_connected_assistant")
             else:
-                answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = await chatgpt_instance.send_message(
-                    _message,
-                    dialog_messages=dialog_messages,
-                    chat_mode=chat_mode
-                )
+                if chat_mode != "internet_connected_assistant":
+                    answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = await chatgpt_instance.send_message(
+                        _message,
+                        dialog_messages=dialog_messages,
+                        chat_mode=chat_mode
+                    )
+                    async def fake_gen():
+                        yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
 
-                async def fake_gen():
-                    yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
-
-                gen = fake_gen()
+                    gen = fake_gen()
+                else:
+                    gen = chatgpt_instance.send_internetmessage(_message, dialog_messages=dialog_messages, chat_mode="internet_connected_assistant")
 
             prev_answer = ""
             async for gen_item in gen:
@@ -373,28 +374,29 @@ async def voicemessage_handle(update: Update, context: CallbackContext, message=
 
             chatgpt_instance = openai_utils.ChatGPT(model=current_model)
             if config.enable_message_streaming:
-                gen = chatgpt_instance.send_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
-                #print("gen stream", gen)
+                if chat_mode != "internet_connected_assistant":
+                    gen = chatgpt_instance.send_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
+                else:
+                    gen = chatgpt_instance.send_internetmessage(_message, dialog_messages=dialog_messages, chat_mode="internet_connected_assistant")
             else:
-                answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = await chatgpt_instance.send_message(
-                    _message,
-                    dialog_messages=dialog_messages,
-                    chat_mode=chat_mode
-                )
-                #print("answer", answer)
+                if chat_mode != "internet_connected_assistant":
+                    answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = await chatgpt_instance.send_message(
+                        _message,
+                        dialog_messages=dialog_messages,
+                        chat_mode=chat_mode
+                    )
+                    async def fake_gen():
+                        yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
 
-                async def fake_gen():
-                    yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
-
-                gen = fake_gen()
+                    gen = fake_gen()
+                else:
+                    gen = chatgpt_instance.send_internetmessage(_message, dialog_messages=dialog_messages, chat_mode="internet_connected_assistant")
 
             prev_answer = ""
             async for gen_item in gen:
                 status, answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = gen_item
 
                 answer = answer[:4096]  # telegram message limit
-
-                #print("answer async", answer)
 
                 # update only when 100 new symbols are ready
                 if abs(len(answer) - len(prev_answer)) < 100 and status != "finished":
@@ -411,7 +413,6 @@ async def voicemessage_handle(update: Update, context: CallbackContext, message=
                 await asyncio.sleep(0.01)  # wait a bit to avoid flooding
 
                 prev_answer = answer
-                #print("prev_answer async", prev_answer)
 
             # update user data
             new_dialog_message = {"user": _message, "bot": answer, "date": datetime.now()}

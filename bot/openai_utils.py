@@ -1,38 +1,158 @@
-from gettext import translation
-import re
-from sys import api_version
 import config
 import uuid, requests
-
+import cohere
+import google.generativeai as palm
 import tiktoken
 import openai
+import os
+import logging
+import sys
+from newspaper import Article
+from bs4 import BeautifulSoup
 import azure.cognitiveservices.speech as speechsdk
+from langchain.embeddings import OpenAIEmbeddings
+from llama_index.llms import AzureOpenAI
+from llama_index import (
+    VectorStoreIndex,
+    ListIndex,
+    LangchainEmbedding,
+    PromptHelper,
+    Prompt,
+    SimpleDirectoryReader,
+    ServiceContext,
+    get_response_synthesizer,
+    set_global_service_context,
+)
+from llama_index.retrievers import VectorIndexRetriever
+from llama_index.query_engine import RetrieverQueryEngine
+from llama_index.indices.postprocessor import SimilarityPostprocessor
+from llama_index.text_splitter import SentenceSplitter
+from llama_index.node_parser import SimpleNodeParser
+
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
+
+#UPLOAD_FOLDER = './data'  # set the upload folder path
+UPLOAD_FOLDER = os.path.join(".", "data")
+LIST_FOLDER = os.path.join(UPLOAD_FOLDER, "list_index")
+VECTOR_FOLDER = os.path.join(UPLOAD_FOLDER, "vector_index")
+
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+if not os.path.exists(LIST_FOLDER ):
+    os.makedirs(LIST_FOLDER)
+if not os.path.exists(VECTOR_FOLDER ):
+    os.makedirs(VECTOR_FOLDER)
+
 openai.api_key = config.openai_api_key
 openai.api_type = "azure"
 openai.api_base =  config.openai_api_base
 openai.api_version = config.openai_api_version
+
+embedding_api_version = config.openai_embeddingapi_version
+cohere_api_key = config.cohere_api_key
+google_palm_api_key = config.google_palm_api_key
+azure_api_key = config.openai_api_key
+bing_api_key = config.bing_api_key
+bing_endpoint = config.bing_endpoint
+bing_news_endpoint = config.bing_news_endpoint
+
+max_input_size = 4096
+num_output = 1024
+max_chunk_overlap_ratio = 0.1
+chunk_size = 512
+context_window = 4096
+prompt_helper = PromptHelper(max_input_size, num_output, max_chunk_overlap_ratio)
+text_splitter = SentenceSplitter(
+    separator=" ",
+    chunk_size=chunk_size,
+    chunk_overlap=20,
+    paragraph_separator="\n\n\n"
+)
+node_parser = SimpleNodeParser(text_splitter=text_splitter)
+llm = AzureOpenAI(
+    engine="gpt-3p5-turbo-16k",
+    model="gpt-35-turbo-16k",
+    openai_api_key=azure_api_key,
+    openai_api_base=openai.api_base,
+    openai_api_type=openai.api_type,
+    openai_api_version=openai.api_version,
+    temperature=0.5,
+    max_tokens=1024,
+)
+embedding_llm = LangchainEmbedding(
+    OpenAIEmbeddings(
+        engine="text-embedding-002",
+        model="text-embedding-002",
+        openai_api_key=azure_api_key,
+        openai_api_base=openai.api_base,
+        openai_api_type=openai.api_type,
+        openai_api_version=embedding_api_version,
+        chunk_size=32,
+        max_retries=3,
+    ),
+    embed_batch_size=1,
+)
+service_context = ServiceContext.from_defaults(
+    llm=llm,
+    embed_model=embedding_llm,
+    prompt_helper=prompt_helper,
+    chunk_size=chunk_size,
+    context_window=context_window,
+    node_parser=node_parser,
+
+)
+set_global_service_context(service_context)
+sum_template = (
+    "You are a world-class text summarizer. We have provided context information below. \n"
+    "---------------------\n"
+    "{context_str}"
+    "\n---------------------\n"
+    "Based on the context provided, your task is to summarize the input context while effectively conveying the main points and relevant information. The summary should be presented in a numbered list of at least 10 key points and takeaways, with a catchy headline at the top. It is important to refrain from directly copying word-for-word from the original context. Additionally, please ensure that the summary excludes any extraneous details such as discounts, promotions, sponsorships, or advertisements, and remains focused on the core message of the content.\n"
+    "---------------------\n"
+    "Using both the context information and also using your own knowledge, "
+    "answer the question: {query_str}\n"
+)
+summary_template = Prompt(sum_template)
+ques_template = (
+    "You are a world-class personal assistant. You will be provided snippets of information from the main context based on user's query. Here is the context:\n"
+    "---------------------\n"
+    "{context_str}\n"
+    "\n---------------------\n"
+    "Based on the context provided, your task is to answer the user's question to the best of your ability. It is important to refrain from directly copying word-for-word from the original context. Additionally, please ensure that the summary excludes any extraneous details such as discounts, promotions, sponsorships, or advertisements, and remains focused on the core message of the content.\n"
+    "---------------------\n"
+    "Using both the context information and also using your own knowledge, "
+    "answer the question: {query_str}\n"
+)
+qa_template = Prompt(ques_template)
 
 azurespeechkey = config.azurespeechkey
 azurespeechregion = config.azurespeechregion
 azuretexttranslatorkey = config.azuretexttranslatorkey
 
 OPENAI_COMPLETION_OPTIONS = {
-    "temperature": 0.7,
-    "max_tokens": 1000,
+    "temperature": 0.5,
+    "max_tokens": 1024,
     "top_p": 1,
     "frequency_penalty": 0,
     "presence_penalty": 0
 }
 
-
 class ChatGPT:
     def __init__(self, model="gpt-3p5-turbo-16k"):
-        assert model in {"text-davinci-003", "gpt-3p5-turbo", "gpt-3p5-turbo-16k", "gpt-4"}, f"Unknown model: {model}"
+        assert model in {"text-davinci-003", "gpt-3p5-turbo", "gpt-3p5-turbo-16k", "gpt-4", "cohere", "palm"}, f"Unknown model: {model}"
         self.model = model
 
     async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
         if chat_mode not in config.chat_modes.keys():
             raise ValueError(f"Chat mode {chat_mode} is not supported")
+        
+        # Convert model names for token counting
+        token_count_model = self.model
+        if token_count_model == "gpt-3p5-turbo":
+            token_count_model = "gpt-3.5-turbo"
+        elif token_count_model == "gpt-3p5-turbo-16k":
+            token_count_model = "gpt-3.5-turbo-16k"
 
         n_dialog_messages_before = len(dialog_messages)
         answer = None
@@ -43,10 +163,11 @@ class ChatGPT:
                     r = await openai.ChatCompletion.acreate(
                         engine=self.model,
                         messages=messages,
-                        api_version="2023-03-15-preview",
+                        api_version=openai.api_version,
                         **OPENAI_COMPLETION_OPTIONS
                     )
                     answer = r.choices[0].message["content"]
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
                 elif self.model == "text-davinci-003":
                     prompt = self._generate_prompt(message, dialog_messages, chat_mode)
                     r = await openai.Completion.acreate(
@@ -55,11 +176,32 @@ class ChatGPT:
                         **OPENAI_COMPLETION_OPTIONS
                     )
                     answer = r.choices[0].text
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
+                elif self.model == "cohere":
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    co = cohere.Client(cohere_api_key)
+                    r = co.generate(
+                        model='command-nightly',
+                        prompt=str(messages).replace("'", '"'),
+                        temperature=0.5,
+                        max_tokens=1024,
+                    )
+                    answer = r.generations[0].text
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
+                elif self.model == "palm":
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    palm.configure(api_key=google_palm_api_key)
+                    r = await palm.chat_async(
+                        model="models/chat-bison-001",
+                        messages=str(messages).replace("'", '"'),
+                        temperature=0.5,
+                    )
+                    answer = r.last
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
                 else:
                     raise ValueError(f"Unknown model: {self.model}")
 
                 answer = self._postprocess_answer(answer)
-                n_input_tokens, n_output_tokens = r.usage.prompt_tokens, r.usage.completion_tokens
             except openai.error.InvalidRequestError as e:  # too many tokens
                 if len(dialog_messages) == 0:
                     raise ValueError("Dialog messages is reduced to zero, but still has too many tokens to make completion") from e
@@ -86,16 +228,16 @@ class ChatGPT:
         answer = None
         while answer is None:
             try:
+                # Chat models
                 if self.model in {"gpt-3p5-turbo", "gpt-3p5-turbo-16k", "gpt-4"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     r_gen = await openai.ChatCompletion.acreate(
                         engine=self.model,
                         messages=messages,
-                        api_version="2023-03-15-preview",
+                        api_version=openai.api_version,
                         stream=True,
                         **OPENAI_COMPLETION_OPTIONS
                     )
-
                     answer = ""
                     async for r_item in r_gen:
                         delta = r_item.choices[0].delta
@@ -104,6 +246,32 @@ class ChatGPT:
                             n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
                             n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                             yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+                elif self.model == "cohere":
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    co = cohere.Client(cohere_api_key)
+                    r_gen = co.generate(
+                        model='command-nightly',
+                        prompt=str(messages).replace("'", '"'),
+                        temperature=0.5,
+                        max_tokens=1024,
+                    )
+                    answer = r_gen.generations[0].text
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
+                    n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+                    yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+                elif self.model == "palm":
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    palm.configure(api_key=google_palm_api_key)
+                    r_gen = await palm.chat_async(
+                        model="models/chat-bison-001",
+                        messages=str(messages).replace("'", '"'),
+                        temperature=0.5,
+                    )
+                    answer = r_gen.last
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
+                    n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+                    yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+                # Text completion models
                 elif self.model == "text-davinci-003":
                     prompt = self._generate_prompt(message, dialog_messages, chat_mode)
                     r_gen = await openai.Completion.acreate(
@@ -112,7 +280,6 @@ class ChatGPT:
                         stream=True,
                         **OPENAI_COMPLETION_OPTIONS
                     )
-
                     answer = ""
                     async for r_item in r_gen:
                         answer += r_item.choices[0].text
@@ -129,6 +296,44 @@ class ChatGPT:
                 # forget first message in dialog_messages
                 dialog_messages = dialog_messages[1:]
 
+        yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed  # sending final answer
+
+    async def send_internetmessage(self, message, dialog_messages=[], chat_mode="internet_connected_assistant"):
+
+        if chat_mode not in config.chat_modes.keys():
+                raise ValueError(f"Chat mode {chat_mode} is not supported")
+        
+        # Convert model names for token counting
+        token_count_model = self.model
+        if token_count_model == "gpt-3p5-turbo":
+            token_count_model = "gpt-3.5-turbo"
+        elif token_count_model == "gpt-3p5-turbo-16k":
+            token_count_model = "gpt-3.5-turbo-16k"
+
+        n_dialog_messages_before = len(dialog_messages)
+        answer = None
+        while answer is None:
+            try:
+                messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                if "news" in message.lower():
+                    answer = self._get_bing_news_results(message)
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
+                    n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+                    yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+                else:
+                    answer = self._get_bing_results(message)
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
+                    n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+                    yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+                
+                answer = self._postprocess_answer(answer)
+
+            except Exception as e:
+                if len(dialog_messages) == 0:
+                    raise e
+                # forget first message in dialog_messages
+                dialog_messages = dialog_messages[1:]
+            
         yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed  # sending final answer
 
     def _generate_prompt(self, message, dialog_messages, chat_mode):
@@ -201,8 +406,156 @@ class ChatGPT:
         n_output_tokens = len(encoding.encode(answer))
 
         return n_input_tokens, n_output_tokens
+    
+    def _clearallfiles(self):
+        # Ensure the UPLOAD_FOLDER is empty
+        for root, dirs, files in os.walk(UPLOAD_FOLDER):
+            for file in files:
+                file_path = os.path.join(root, file)
+                os.remove(file_path)
 
-#Transcribe Indian languages to English text
+    def _text_extractor(self, url):
+
+        if url:
+            # Extract the article
+            article = Article(url)
+            try:
+                article.download()
+                article.parse()
+                #Check if the article text has atleast 75 words
+                if len(article.text.split()) < 75:
+                    raise Exception("Article is too short. Probably the article is behind a paywall.")
+            except Exception as e:
+                print("Failed to download and parse article from URL using newspaper package: %s. Error: %s", url, str(e))
+                # Try an alternate method using requests and beautifulsoup
+                try:
+                    req = requests.get(url)
+                    soup = BeautifulSoup(req.content, 'html.parser')
+                    article.text = soup.get_text()
+                except Exception as e:
+                    print("Failed to download article using beautifulsoup method from URL: %s. Error: %s", url, str(e))
+            return article.text
+        else:
+            return None
+
+    def _saveextractedtext_to_file(self, text, filename):
+
+        # Save the output to the article.txt file
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        with open(file_path, 'w') as file:
+            file.write(text)
+
+        return f"Text saved to {file_path}"
+
+    def _get_bing_results(self, query, num=10):
+
+        self._clearallfiles()
+        # Construct a request
+        mkt = 'en-US'
+        params = { 'q': query, 'mkt': mkt, 'count': num, 'responseFilter': ['Webpages','News'] }
+        headers = { 'Ocp-Apim-Subscription-Key': bing_api_key }
+        response = requests.get(bing_endpoint, headers=headers, params=params)
+        response_data = response.json()  # Parse the JSON response
+
+        # Extract snippets and append them into a single text variable
+        all_snippets = [result['snippet'] for result in response_data['webPages']['value']]
+        combined_snippets = '\n'.join(all_snippets)
+        
+        # Format the results as a string
+        output = f"Here is the context from Bing for the query: '{query}':\n"
+        output += combined_snippets
+
+        # Save the output to a file
+        self._saveextractedtext_to_file(output, "bing_results.txt")
+        # Query the results using llama-index
+        answer = str(self._simple_query(UPLOAD_FOLDER, query)).strip()
+
+        return answer
+
+    def _get_bing_news_results(self, query, num=5):
+
+        self._clearallfiles()
+        # Construct a request
+        mkt = 'en-US'
+        params = { 'q': query, 'mkt': mkt, 'freshness': 'Day', 'count': num }
+        headers = { 'Ocp-Apim-Subscription-Key': bing_api_key }
+        response = requests.get(bing_news_endpoint, headers=headers, params=params)
+        response_data = response.json()  # Parse the JSON response
+        #pprint(response_data)
+
+        # Extract text from the urls and append them into a single text variable
+        all_urls = [result['url'] for result in response_data['value']]
+        all_snippets = [self._text_extractor(url) for url in all_urls]
+
+        # Combine snippets with titles and article names
+        combined_output = ""
+        for i, (snippet, result) in enumerate(zip(all_snippets, response_data['value'])):
+            title = f"Article {i + 1}: {result['name']}"
+            if len(snippet.split()) >= 75:  # Check if article has at least 75 words
+                combined_output += f"\n{title}\n{snippet}\n"
+
+        # Format the results as a string
+        output = f"Here's scraped text from top {num} articles for: '{query}':\n"
+        output += combined_output
+
+        # Save the output to a file
+        self._saveextractedtext_to_file(output, "bing_results.txt")
+        # Summarize the bing search response
+        bingsummary = str(self._summarize(UPLOAD_FOLDER)).strip()
+
+        return bingsummary
+
+    def _summarize(self, data_folder):
+        
+        # Initialize a document
+        documents = SimpleDirectoryReader(data_folder).load_data()
+        #index = VectorStoreIndex.from_documents(documents)
+        list_index = ListIndex.from_documents(documents)
+        # ListIndexRetriever
+        retriever = list_index.as_retriever(
+            retriever_mode='default',
+        )
+        # configure response synthesizer
+        response_synthesizer = get_response_synthesizer(
+            response_mode="tree_summarize",
+            text_qa_template=summary_template,
+        )
+        # assemble query engine
+        query_engine = RetrieverQueryEngine(
+            retriever=retriever,
+            response_synthesizer=response_synthesizer,
+        )
+        response = query_engine.query("Generate a summary of the input context. Be as verbose as possible, while keeping the summary concise and to the point.")
+
+        return response
+
+    def _simple_query(self, data_folder, query):
+        
+        # Initialize a document
+        documents = SimpleDirectoryReader(data_folder).load_data()
+        #index = VectorStoreIndex.from_documents(documents)
+        vector_index = VectorStoreIndex.from_documents(documents)
+        # configure retriever
+        retriever = VectorIndexRetriever(
+            index=vector_index,
+            similarity_top_k=6,
+        )
+        # # configure response synthesizer
+        response_synthesizer = get_response_synthesizer(
+            text_qa_template=qa_template,
+        )
+        # # assemble query engine
+        query_engine = RetrieverQueryEngine(
+            retriever=retriever,
+            response_synthesizer=response_synthesizer,
+            node_postprocessors=[
+                SimilarityPostprocessor(similarity_cutoff=0.5)
+            ],
+        )
+        response = query_engine.query(query)
+
+        return response
+
 async def transcribe_audio(audio_file):
     # Create an instance of a speech config with your subscription key and region
     # Currently the v2 endpoint is required. In a future SDK release you won't need to set it. 

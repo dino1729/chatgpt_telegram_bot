@@ -9,3 +9,10 @@ azure.cognitiveservices.speech
 uuid
 requests
 chardet
+llama-index==0.7.24.post1
+langchain
+newspaper3k
+beautifulsoup4
+cohere
+google.generativeai
+

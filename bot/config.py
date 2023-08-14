@@ -16,6 +16,14 @@ telegram_token = config_yaml["telegram_token"]
 openai_api_key = config_yaml["openai_api_key"]
 openai_api_base = config_yaml["openai_api_base"]
 openai_api_version = config_yaml["openai_api_version"]
+openai_embeddingapi_version = config_yaml["openai_embeddingapi_version"]
+
+cohere_api_key = config_yaml["cohere_api_key"]
+google_palm_api_key = config_yaml["google_palm_api_key"]
+
+bing_api_key = config_yaml["bing_api_key"]
+bing_endpoint = config_yaml["bing_endpoint"] + "/v7.0/search"
+bing_news_endpoint = config_yaml["bing_endpoint"] + "/v7.0/news/search"
 
 azurespeechkey = config_yaml["azurespeechkey"]
 azurespeechregion = config_yaml["azurespeechregion"]
