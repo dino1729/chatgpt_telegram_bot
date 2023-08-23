@@ -1,4 +1,3 @@
-from numpy import r_
 import config
 import uuid, requests
 import cohere
@@ -57,6 +56,8 @@ azure_api_key = config.openai_api_key
 bing_api_key = config.bing_api_key
 bing_endpoint = config.bing_endpoint
 bing_news_endpoint = config.bing_news_endpoint
+
+openai_api_base = config.openai_api_base
 llama2_api_base = config.llama2_api_base
 
 max_input_size = 4096
@@ -162,6 +163,8 @@ class ChatGPT:
             try:
                 if self.model in {"gpt-3p5-turbo", "gpt-3p5-turbo-16k", "gpt-4"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    openai.api_type = "azure"
+                    openai.api_base = openai_api_base
                     r = await openai.ChatCompletion.acreate(
                         engine=self.model,
                         messages=messages,
@@ -183,6 +186,8 @@ class ChatGPT:
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
                 elif self.model == "text-davinci-003":
                     prompt = self._generate_prompt(message, dialog_messages, chat_mode)
+                    openai.api_type = "azure"
+                    openai.api_base = openai_api_base
                     r = await openai.Completion.acreate(
                         engine=self.model,
                         prompt=prompt,
@@ -244,6 +249,8 @@ class ChatGPT:
                 # Chat models
                 if self.model in {"gpt-3p5-turbo", "gpt-3p5-turbo-16k", "gpt-4"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    openai.api_type = "azure"
+                    openai.api_base = openai_api_base                   
                     r_gen = await openai.ChatCompletion.acreate(
                         engine=self.model,
                         messages=messages,
@@ -300,6 +307,8 @@ class ChatGPT:
                 # Text completion models
                 elif self.model == "text-davinci-003":
                     prompt = self._generate_prompt(message, dialog_messages, chat_mode)
+                    openai.api_type = "azure"
+                    openai.api_base = openai_api_base                    
                     r_gen = await openai.Completion.acreate(
                         engine=self.model,
                         prompt=prompt,
@@ -533,6 +542,8 @@ class ChatGPT:
 
     def _summarize(self, data_folder):
         
+        # Set service context
+        set_global_service_context(service_context)        
         # Initialize a document
         documents = SimpleDirectoryReader(data_folder).load_data()
         #index = VectorStoreIndex.from_documents(documents)
@@ -557,6 +568,8 @@ class ChatGPT:
 
     def _simple_query(self, data_folder, query):
         
+        # Set service context
+        set_global_service_context(service_context)         
         # Initialize a document
         documents = SimpleDirectoryReader(data_folder).load_data()
         #index = VectorStoreIndex.from_documents(documents)

@@ -2,6 +2,16 @@ telegram_token: ""
 openai_api_key: ""
 openai_api_base: ""
 openai_api_version: ""
+openai_embeddingapi_version: ""
+
+llama2_api_base: ""
+
+bing_api_key: ""
+bing_endpoint: ""
+
+google_palm_api_key: ""
+cohere_api_key: ""
+
 azurespeechkey: ""
 azurespeechregion: ""
 azuretexttranslatorkey: ""
