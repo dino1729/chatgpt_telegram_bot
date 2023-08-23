@@ -131,6 +131,7 @@ dmypy.json
 # Custom
 config/config.yml
 config/config.env
+data/
 
 docker-compose.dev.yml
 

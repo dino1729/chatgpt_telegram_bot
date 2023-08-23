@@ -1,4 +1,4 @@
-available_text_models: ["gpt-3p5-turbo-16k", "gpt-3p5-turbo", "gpt-4", "text-davinci-003", "cohere", "palm"]
+available_text_models: ["gpt-3p5-turbo-16k", "gpt-3p5-turbo", "gpt-4", "text-davinci-003", "cohere", "palm", "wizardlm-7b-8k-m"]
 
 info:
 
@@ -79,6 +79,19 @@ info:
       Smart: 3
       Fast: 2
       Cheap: 3
+
+  wizardlm-7b-8k-m:
+    type: chat_completion
+    name: WizardLM
+    description: Even though WizardLM still lags behind ChatGPT in some aspects, our findings suggest that fine-tuning with AI-evolved instructions is a promising direction for enhancing LLMs. In GPT-4 automatic evaluation, WizardLM achieves more than 90\% capacity of ChatGPT on 17 out of 29 skills. 
+
+    price_per_1000_input_tokens: 0.02
+    price_per_1000_output_tokens: 0.02
+
+    scores:
+      Smart: 3
+      Fast: 2
+      Cheap: 4
 
   dalle-2:
      type: image

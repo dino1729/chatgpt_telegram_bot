@@ -10,7 +10,7 @@ uuid
 requests
 chardet
 llama-index==0.7.24.post1
-langchain
+langchain==0.0.263
 newspaper3k
 beautifulsoup4
 cohere

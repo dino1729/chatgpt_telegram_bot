@@ -1,3 +1,4 @@
+from numpy import r_
 import config
 import uuid, requests
 import cohere
@@ -56,6 +57,7 @@ azure_api_key = config.openai_api_key
 bing_api_key = config.bing_api_key
 bing_endpoint = config.bing_endpoint
 bing_news_endpoint = config.bing_news_endpoint
+llama2_api_base = config.llama2_api_base
 
 max_input_size = 4096
 num_output = 1024
@@ -140,7 +142,7 @@ OPENAI_COMPLETION_OPTIONS = {
 
 class ChatGPT:
     def __init__(self, model="gpt-3p5-turbo-16k"):
-        assert model in {"text-davinci-003", "gpt-3p5-turbo", "gpt-3p5-turbo-16k", "gpt-4", "cohere", "palm"}, f"Unknown model: {model}"
+        assert model in {"text-davinci-003", "gpt-3p5-turbo", "gpt-3p5-turbo-16k", "gpt-4", "cohere", "palm", "wizardlm-7b-8k-m"}, f"Unknown model: {model}"
         self.model = model
 
     async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
@@ -168,6 +170,17 @@ class ChatGPT:
                     )
                     answer = r.choices[0].message["content"]
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
+                elif self.model == "wizardlm-7b-8k-m":
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    openai.api_type = "open_ai"
+                    openai.api_base = llama2_api_base
+                    r = await openai.ChatCompletion.acreate(
+                        model=self.model,
+                        messages=messages,
+                        **OPENAI_COMPLETION_OPTIONS
+                    )
+                    answer = r.choices[0].message["content"]
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
                 elif self.model == "text-davinci-003":
                     prompt = self._generate_prompt(message, dialog_messages, chat_mode)
                     r = await openai.Completion.acreate(
@@ -246,6 +259,19 @@ class ChatGPT:
                             n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
                             n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                             yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+                elif self.model == "wizardlm-7b-8k-m":
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    openai.api_type = "open_ai"
+                    openai.api_base = llama2_api_base
+                    r_gen = await openai.ChatCompletion.acreate(
+                        model=self.model,
+                        messages=messages,
+                        **OPENAI_COMPLETION_OPTIONS
+                    )
+                    answer = r_gen.choices[0].message["content"]
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
+                    n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+                    yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
                 elif self.model == "cohere":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     co = cohere.Client(cohere_api_key)

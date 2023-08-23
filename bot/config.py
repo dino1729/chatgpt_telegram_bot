@@ -18,6 +18,8 @@ openai_api_base = config_yaml["openai_api_base"]
 openai_api_version = config_yaml["openai_api_version"]
 openai_embeddingapi_version = config_yaml["openai_embeddingapi_version"]
 
+llama2_api_base = config_yaml["llama2_api_base"]
+
 cohere_api_key = config_yaml["cohere_api_key"]
 google_palm_api_key = config_yaml["google_palm_api_key"]
 
