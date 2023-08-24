@@ -553,8 +553,9 @@ class ChatGPT:
 
     def _summarize(self, data_folder):
         
-        # Set service context
-        set_global_service_context(service_context)        
+        # Reset OpenAI API type and base
+        openai.api_type = azure_api_type
+        openai.api_base = azure_api_base     
         # Initialize a document
         documents = SimpleDirectoryReader(data_folder).load_data()
         #index = VectorStoreIndex.from_documents(documents)
@@ -579,8 +580,9 @@ class ChatGPT:
 
     def _simple_query(self, data_folder, query):
         
-        # Set service context
-        set_global_service_context(service_context)         
+        # Reset OpenAI API type and base
+        openai.api_type = azure_api_type
+        openai.api_base = azure_api_base        
         # Initialize a document
         documents = SimpleDirectoryReader(data_folder).load_data()
         #index = VectorStoreIndex.from_documents(documents)
