@@ -44,21 +44,27 @@ if not os.path.exists(LIST_FOLDER ):
 if not os.path.exists(VECTOR_FOLDER ):
     os.makedirs(VECTOR_FOLDER)
 
-openai.api_key = config.openai_api_key
-openai.api_type = "azure"
-openai.api_base =  config.openai_api_base
-openai.api_version = config.openai_api_version
-
 embedding_api_version = config.openai_embeddingapi_version
 cohere_api_key = config.cohere_api_key
 google_palm_api_key = config.google_palm_api_key
 azure_api_key = config.openai_api_key
+azure_api_version = config.openai_api_version
 bing_api_key = config.bing_api_key
 bing_endpoint = config.bing_endpoint
 bing_news_endpoint = config.bing_news_endpoint
-
-openai_api_base = config.openai_api_base
+azure_api_type = "azure"
+azure_api_base = config.openai_api_base
+llama2_api_type = "open_ai"
 llama2_api_base = config.llama2_api_base
+azurespeechkey = config.azurespeechkey
+azurespeechregion = config.azurespeechregion
+azuretexttranslatorkey = config.azuretexttranslatorkey
+
+# Set Azure OpenAI Defaults
+openai.api_type = azure_api_type
+openai.api_base =  azure_api_base
+openai.api_key = azure_api_key
+openai.api_version = azure_api_version
 
 max_input_size = 4096
 num_output = 1024
@@ -77,9 +83,9 @@ llm = AzureOpenAI(
     engine="gpt-3p5-turbo-16k",
     model="gpt-35-turbo-16k",
     openai_api_key=azure_api_key,
-    openai_api_base=openai.api_base,
-    openai_api_type=openai.api_type,
-    openai_api_version=openai.api_version,
+    openai_api_base=azure_api_base,
+    openai_api_type=azure_api_key,
+    openai_api_version=azure_api_version,
     temperature=0.5,
     max_tokens=1024,
 )
@@ -88,8 +94,8 @@ embedding_llm = LangchainEmbedding(
         engine="text-embedding-002",
         model="text-embedding-002",
         openai_api_key=azure_api_key,
-        openai_api_base=openai.api_base,
-        openai_api_type=openai.api_type,
+        openai_api_base=azure_api_base,
+        openai_api_type=azure_api_type,
         openai_api_version=embedding_api_version,
         chunk_size=32,
         max_retries=3,
@@ -129,10 +135,6 @@ ques_template = (
 )
 qa_template = Prompt(ques_template)
 
-azurespeechkey = config.azurespeechkey
-azurespeechregion = config.azurespeechregion
-azuretexttranslatorkey = config.azuretexttranslatorkey
-
 OPENAI_COMPLETION_OPTIONS = {
     "temperature": 0.5,
     "max_tokens": 1024,
@@ -163,8 +165,8 @@ class ChatGPT:
             try:
                 if self.model in {"gpt-3p5-turbo", "gpt-3p5-turbo-16k", "gpt-4"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
-                    openai.api_type = "azure"
-                    openai.api_base = openai_api_base
+                    openai.api_type = azure_api_type
+                    openai.api_base = azure_api_base
                     r = await openai.ChatCompletion.acreate(
                         engine=self.model,
                         messages=messages,
@@ -175,7 +177,7 @@ class ChatGPT:
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
                 elif self.model == "wizardlm-7b-8k-m":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
-                    openai.api_type = "open_ai"
+                    openai.api_type = llama2_api_type
                     openai.api_base = llama2_api_base
                     r = await openai.ChatCompletion.acreate(
                         model=self.model,
@@ -186,8 +188,8 @@ class ChatGPT:
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
                 elif self.model == "text-davinci-003":
                     prompt = self._generate_prompt(message, dialog_messages, chat_mode)
-                    openai.api_type = "azure"
-                    openai.api_base = openai_api_base
+                    openai.api_type = azure_api_type
+                    openai.api_base = azure_api_base
                     r = await openai.Completion.acreate(
                         engine=self.model,
                         prompt=prompt,
@@ -232,6 +234,7 @@ class ChatGPT:
         return answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
 
     async def send_message_stream(self, message, dialog_messages=[], chat_mode="assistant"):
+        
         if chat_mode not in config.chat_modes.keys():
             raise ValueError(f"Chat mode {chat_mode} is not supported")
         
@@ -249,8 +252,8 @@ class ChatGPT:
                 # Chat models
                 if self.model in {"gpt-3p5-turbo", "gpt-3p5-turbo-16k", "gpt-4"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
-                    openai.api_type = "azure"
-                    openai.api_base = openai_api_base                   
+                    openai.api_type = azure_api_type
+                    openai.api_base = azure_api_base                   
                     r_gen = await openai.ChatCompletion.acreate(
                         engine=self.model,
                         messages=messages,
@@ -268,7 +271,7 @@ class ChatGPT:
                             yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
                 elif self.model == "wizardlm-7b-8k-m":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
-                    openai.api_type = "open_ai"
+                    openai.api_type = llama2_api_type
                     openai.api_base = llama2_api_base
                     r_gen = await openai.ChatCompletion.acreate(
                         model=self.model,
@@ -307,8 +310,8 @@ class ChatGPT:
                 # Text completion models
                 elif self.model == "text-davinci-003":
                     prompt = self._generate_prompt(message, dialog_messages, chat_mode)
-                    openai.api_type = "azure"
-                    openai.api_base = openai_api_base                    
+                    openai.api_type = azure_api_type
+                    openai.api_base = azure_api_base                    
                     r_gen = await openai.Completion.acreate(
                         engine=self.model,
                         prompt=prompt,
@@ -344,7 +347,9 @@ class ChatGPT:
             token_count_model = "gpt-3.5-turbo"
         elif token_count_model == "gpt-3p5-turbo-16k":
             token_count_model = "gpt-3.5-turbo-16k"
-
+        
+        openai.api_type = azure_api_type
+        openai.api_base = azure_api_base
         n_dialog_messages_before = len(dialog_messages)
         answer = None
         while answer is None:
@@ -372,6 +377,7 @@ class ChatGPT:
         yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed  # sending final answer
 
     def _generate_prompt(self, message, dialog_messages, chat_mode):
+        
         prompt = config.chat_modes[chat_mode]["prompt_start"]
         prompt += "\n\n"
 
@@ -389,6 +395,7 @@ class ChatGPT:
         return prompt
 
     def _generate_prompt_messages(self, message, dialog_messages, chat_mode):
+        
         prompt = config.chat_modes[chat_mode]["prompt_start"]
 
         messages = [{"role": "system", "content": prompt}]
@@ -400,10 +407,12 @@ class ChatGPT:
         return messages
 
     def _postprocess_answer(self, answer):
+        
         answer = answer.strip()
         return answer
 
     def _count_tokens_from_messages(self, messages, answer, model="gpt-3.5-turbo"):
+        
         encoding = tiktoken.encoding_for_model(model)
 
         if model == "gpt-3.5-turbo-16k":
@@ -435,6 +444,7 @@ class ChatGPT:
         return n_input_tokens, n_output_tokens
 
     def _count_tokens_from_prompt(self, prompt, answer, model="text-davinci-003"):
+        
         encoding = tiktoken.encoding_for_model(model)
 
         n_input_tokens = len(encoding.encode(prompt)) + 1
@@ -443,6 +453,7 @@ class ChatGPT:
         return n_input_tokens, n_output_tokens
     
     def _clearallfiles(self):
+        
         # Ensure the UPLOAD_FOLDER is empty
         for root, dirs, files in os.walk(UPLOAD_FOLDER):
             for file in files:
@@ -596,6 +607,7 @@ class ChatGPT:
         return response
 
 async def transcribe_audio(audio_file):
+    
     # Create an instance of a speech config with your subscription key and region
     # Currently the v2 endpoint is required. In a future SDK release you won't need to set it. 
     endpoint_string = "wss://{}.stt.speech.microsoft.com/speech/universal/v2".format(azurespeechregion)
@@ -654,6 +666,7 @@ async def translate_text(text, target_language):
     return response[0]['translations'][0]['text']
 
 async def text_to_speech(text, output_path, language):
+    
     speech_config = speechsdk.SpeechConfig(subscription=azurespeechkey, region=azurespeechregion)
     # Set the voice based on the language
     if language == "te-IN":
@@ -675,6 +688,9 @@ async def text_to_speech(text, output_path, language):
             #print("Speech synthesized and saved to WAV file.")
 
 async def generate_images(prompt, n_images=4):
+    
+    openai.api_type = azure_api_type
+    openai.api_base = azure_api_base
     r = await openai.Image.acreate(
         prompt=prompt,
         n=n_images,
@@ -685,5 +701,8 @@ async def generate_images(prompt, n_images=4):
     return image_urls
 
 async def is_content_acceptable(prompt):
+    
+    openai.api_type = azure_api_type
+    openai.api_base = azure_api_base
     r = await openai.Moderation.acreate(input=prompt)
     return not all(r.results[0].categories.values())
