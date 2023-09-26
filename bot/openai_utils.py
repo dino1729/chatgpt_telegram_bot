@@ -80,8 +80,8 @@ text_splitter = SentenceSplitter(
 )
 node_parser = SimpleNodeParser(text_splitter=text_splitter)
 llm = AzureOpenAI(
-    engine="gpt-3p5-turbo-16k",
-    model="gpt-35-turbo-16k",
+    engine="gpt-4-32k",
+    model="gpt-4-32k",
     openai_api_key=azure_api_key,
     openai_api_base=azure_api_base,
     openai_api_type=azure_api_key,
@@ -144,8 +144,8 @@ OPENAI_COMPLETION_OPTIONS = {
 }
 
 class ChatGPT:
-    def __init__(self, model="gpt-3p5-turbo-16k"):
-        assert model in {"text-davinci-003", "gpt-3p5-turbo", "gpt-3p5-turbo-16k", "gpt-4", "cohere", "palm", "wizardlm-7b-8k-m"}, f"Unknown model: {model}"
+    def __init__(self, model="gpt-4-32k"):
+        assert model in {"gpt-4-32k", "gpt-35-turbo-16k", "cohere", "palm", "wizardlm-7b-8k-m"}, f"Unknown model: {model}"
         self.model = model
 
     async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
@@ -154,16 +154,16 @@ class ChatGPT:
         
         # Convert model names for token counting
         token_count_model = self.model
-        if token_count_model == "gpt-3p5-turbo":
-            token_count_model = "gpt-3.5-turbo"
-        elif token_count_model == "gpt-3p5-turbo-16k":
+        if token_count_model == "gpt-4-32k":
+            token_count_model = "gpt-4-32k"
+        elif token_count_model == "gpt-35-turbo-16k":
             token_count_model = "gpt-3.5-turbo-16k"
 
         n_dialog_messages_before = len(dialog_messages)
         answer = None
         while answer is None:
             try:
-                if self.model in {"gpt-3p5-turbo", "gpt-3p5-turbo-16k", "gpt-4"}:
+                if self.model in {"gpt-4-32k", "gpt-35-turbo-16k"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     openai.api_type = azure_api_type
                     openai.api_base = azure_api_base
@@ -186,17 +186,17 @@ class ChatGPT:
                     )
                     answer = r.choices[0].message["content"]
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
-                elif self.model == "text-davinci-003":
-                    prompt = self._generate_prompt(message, dialog_messages, chat_mode)
-                    openai.api_type = azure_api_type
-                    openai.api_base = azure_api_base
-                    r = await openai.Completion.acreate(
-                        engine=self.model,
-                        prompt=prompt,
-                        **OPENAI_COMPLETION_OPTIONS
-                    )
-                    answer = r.choices[0].text
-                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
+                # elif self.model == "text-davinci-003":
+                #     prompt = self._generate_prompt(message, dialog_messages, chat_mode)
+                #     openai.api_type = azure_api_type
+                #     openai.api_base = azure_api_base
+                #     r = await openai.Completion.acreate(
+                #         engine=self.model,
+                #         prompt=prompt,
+                #         **OPENAI_COMPLETION_OPTIONS
+                #     )
+                #     answer = r.choices[0].text
+                #     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
                 elif self.model == "cohere":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     co = cohere.Client(cohere_api_key)
@@ -240,9 +240,9 @@ class ChatGPT:
         
         # Convert model names for token counting
         token_count_model = self.model
-        if token_count_model == "gpt-3p5-turbo":
-            token_count_model = "gpt-3.5-turbo"
-        elif token_count_model == "gpt-3p5-turbo-16k":
+        if token_count_model == "gpt-4-32k":
+            token_count_model = "gpt-4-32k"
+        elif token_count_model == "gpt-35-turbo-16k":
             token_count_model = "gpt-3.5-turbo-16k"
 
         n_dialog_messages_before = len(dialog_messages)
@@ -250,7 +250,7 @@ class ChatGPT:
         while answer is None:
             try:
                 # Chat models
-                if self.model in {"gpt-3p5-turbo", "gpt-3p5-turbo-16k", "gpt-4"}:
+                if self.model in {"gpt-4-32k", "gpt-35-turbo-16k"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     openai.api_type = azure_api_type
                     openai.api_base = azure_api_base                   
@@ -263,12 +263,14 @@ class ChatGPT:
                     )
                     answer = ""
                     async for r_item in r_gen:
-                        delta = r_item.choices[0].delta
-                        if "content" in delta:
-                            answer += delta.content
-                            n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
-                            n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
-                            yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+                        # Check if choices list is not empty
+                        if r_item.choices:
+                            delta = r_item.choices[0].delta
+                            if "content" in delta:
+                                answer += delta.content
+                                n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
+                                n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+                                yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
                 elif self.model == "wizardlm-7b-8k-m":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     openai.api_type = llama2_api_type
@@ -308,24 +310,24 @@ class ChatGPT:
                     n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                     yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
                 # Text completion models
-                elif self.model == "text-davinci-003":
-                    prompt = self._generate_prompt(message, dialog_messages, chat_mode)
-                    openai.api_type = azure_api_type
-                    openai.api_base = azure_api_base                    
-                    r_gen = await openai.Completion.acreate(
-                        engine=self.model,
-                        prompt=prompt,
-                        stream=True,
-                        **OPENAI_COMPLETION_OPTIONS
-                    )
-                    answer = ""
-                    async for r_item in r_gen:
-                        answer += r_item.choices[0].text
-                        n_input_tokens, n_output_tokens = self._count_tokens_from_prompt(prompt, answer, model=token_count_model)
-                        n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
-                        yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+                # elif self.model == "text-davinci-003":
+                #     prompt = self._generate_prompt(message, dialog_messages, chat_mode)
+                #     openai.api_type = azure_api_type
+                #     openai.api_base = azure_api_base                    
+                #     r_gen = await openai.Completion.acreate(
+                #         engine=self.model,
+                #         prompt=prompt,
+                #         stream=True,
+                #         **OPENAI_COMPLETION_OPTIONS
+                #     )
+                #     answer = ""
+                #     async for r_item in r_gen:
+                #         answer += r_item.choices[0].text
+                #         n_input_tokens, n_output_tokens = self._count_tokens_from_prompt(prompt, answer, model=token_count_model)
+                #         n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+                #         yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
 
-                answer = self._postprocess_answer(answer)
+                # answer = self._postprocess_answer(answer)
 
             except openai.error.InvalidRequestError as e:  # too many tokens
                 if len(dialog_messages) == 0:
@@ -343,9 +345,9 @@ class ChatGPT:
         
         # Convert model names for token counting
         token_count_model = self.model
-        if token_count_model == "gpt-3p5-turbo":
-            token_count_model = "gpt-3.5-turbo"
-        elif token_count_model == "gpt-3p5-turbo-16k":
+        if token_count_model == "gpt-4-32k":
+            token_count_model = "gpt-4-32k"
+        elif token_count_model == "gpt-35-turbo-16k":
             token_count_model = "gpt-3.5-turbo-16k"
         
         openai.api_type = azure_api_type
@@ -422,6 +424,9 @@ class ChatGPT:
             tokens_per_message = 4
             tokens_per_name = -1
         elif model == "gpt-4":
+            tokens_per_message = 3
+            tokens_per_name = 1
+        elif model == "gpt-4-32k":
             tokens_per_message = 3
             tokens_per_name = 1
         else:
