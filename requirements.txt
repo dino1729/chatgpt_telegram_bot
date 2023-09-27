@@ -9,8 +9,8 @@ azure.cognitiveservices.speech
 uuid
 requests
 chardet
-llama-index==0.7.24.post1
-langchain==0.0.263
+llama-index==0.8.33
+langchain==0.0.302
 newspaper3k
 beautifulsoup4
 cohere

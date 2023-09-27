@@ -14,10 +14,9 @@ from langchain.embeddings import OpenAIEmbeddings
 from llama_index.llms import AzureOpenAI
 from llama_index import (
     VectorStoreIndex,
-    ListIndex,
+    SummaryIndex,
     LangchainEmbedding,
     PromptHelper,
-    Prompt,
     SimpleDirectoryReader,
     ServiceContext,
     get_response_synthesizer,
@@ -28,19 +27,20 @@ from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.indices.postprocessor import SimilarityPostprocessor
 from llama_index.text_splitter import SentenceSplitter
 from llama_index.node_parser import SimpleNodeParser
+from llama_index.prompts import PromptTemplate
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 #UPLOAD_FOLDER = './data'  # set the upload folder path
 UPLOAD_FOLDER = os.path.join(".", "data")
-LIST_FOLDER = os.path.join(UPLOAD_FOLDER, "list_index")
+SUMMARY_FOLDER = os.path.join(UPLOAD_FOLDER, "summary_index")
 VECTOR_FOLDER = os.path.join(UPLOAD_FOLDER, "vector_index")
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
-if not os.path.exists(LIST_FOLDER ):
-    os.makedirs(LIST_FOLDER)
+if not os.path.exists(SUMMARY_FOLDER ):
+    os.makedirs(SUMMARY_FOLDER)
 if not os.path.exists(VECTOR_FOLDER ):
     os.makedirs(VECTOR_FOLDER)
 
@@ -54,6 +54,7 @@ bing_endpoint = config.bing_endpoint
 bing_news_endpoint = config.bing_news_endpoint
 azure_api_type = "azure"
 azure_api_base = config.openai_api_base
+azure_api_dallebase = config.openai_api_dallebase
 llama2_api_type = "open_ai"
 llama2_api_base = config.llama2_api_base
 azurespeechkey = config.azurespeechkey
@@ -66,17 +67,19 @@ openai.api_base =  azure_api_base
 openai.api_key = azure_api_key
 openai.api_version = azure_api_version
 
-max_input_size = 4096
+max_input_size = 96000
 num_output = 1024
 max_chunk_overlap_ratio = 0.1
-chunk_size = 512
-context_window = 4096
+chunk_size = 256
+context_window = 32000
 prompt_helper = PromptHelper(max_input_size, num_output, max_chunk_overlap_ratio)
 text_splitter = SentenceSplitter(
     separator=" ",
     chunk_size=chunk_size,
     chunk_overlap=20,
-    paragraph_separator="\n\n\n"
+    paragraph_separator="\n\n\n",
+    secondary_chunking_regex="[^,.;。]+[,.;。]?",
+    tokenizer=tiktoken.encoding_for_model("gpt-4").encode
 )
 node_parser = SimpleNodeParser(text_splitter=text_splitter)
 llm = AzureOpenAI(
@@ -97,7 +100,7 @@ embedding_llm = LangchainEmbedding(
         openai_api_base=azure_api_base,
         openai_api_type=azure_api_type,
         openai_api_version=embedding_api_version,
-        chunk_size=32,
+        chunk_size=16,
         max_retries=3,
     ),
     embed_batch_size=1,
@@ -122,7 +125,7 @@ sum_template = (
     "Using both the latest context information and also using your own knowledge, "
     "answer the question: {query_str}\n"
 )
-summary_template = Prompt(sum_template)
+summary_template = PromptTemplate(sum_template)
 ques_template = (
     "You are a world-class personal assistant connected to the internet. You will be provided snippets of information from the internet based on user's query. Here is the context:\n"
     "---------------------\n"
@@ -133,7 +136,7 @@ ques_template = (
     "Using both the latest context information and also using your own knowledge, "
     "answer the question: {query_str}\n"
 )
-qa_template = Prompt(ques_template)
+qa_template = PromptTemplate(ques_template)
 
 OPENAI_COMPLETION_OPTIONS = {
     "temperature": 0.5,
@@ -564,15 +567,15 @@ class ChatGPT:
         # Initialize a document
         documents = SimpleDirectoryReader(data_folder).load_data()
         #index = VectorStoreIndex.from_documents(documents)
-        list_index = ListIndex.from_documents(documents)
-        # ListIndexRetriever
-        retriever = list_index.as_retriever(
+        summary_index = SummaryIndex.from_documents(documents)
+        # SummaryIndexRetriever
+        retriever = summary_index.as_retriever(
             retriever_mode='default',
         )
         # configure response synthesizer
         response_synthesizer = get_response_synthesizer(
             response_mode="tree_summarize",
-            text_qa_template=summary_template,
+            summary_template=summary_template,
         )
         # assemble query engine
         query_engine = RetrieverQueryEngine(
@@ -697,7 +700,7 @@ async def text_to_speech(text, output_path, language):
 async def generate_images(prompt, n_images=4):
     
     openai.api_type = azure_api_type
-    openai.api_base = azure_api_base
+    openai.api_base = azure_api_dallebase
     r = await openai.Image.acreate(
         prompt=prompt,
         n=n_images,

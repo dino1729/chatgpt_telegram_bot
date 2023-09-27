@@ -15,6 +15,7 @@ config_env = dotenv.dotenv_values(config_dir / "config.env")
 telegram_token = config_yaml["telegram_token"]
 openai_api_key = config_yaml["openai_api_key"]
 openai_api_base = config_yaml["openai_api_base"]
+openai_api_dallebase = config_yaml["openai_api_dallebase"]
 openai_api_version = config_yaml["openai_api_version"]
 openai_embeddingapi_version = config_yaml["openai_embeddingapi_version"]
 
