@@ -48,6 +48,7 @@ embedding_api_version = config.openai_embeddingapi_version
 cohere_api_key = config.cohere_api_key
 google_palm_api_key = config.google_palm_api_key
 azure_api_key = config.openai_api_key
+azure_api_dallekey = config.openai_api_dallekey
 azure_api_version = config.openai_api_version
 bing_api_key = config.bing_api_key
 bing_endpoint = config.bing_endpoint
@@ -169,6 +170,7 @@ class ChatGPT:
                 if self.model in {"gpt-4-32k", "gpt-35-turbo-16k"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     openai.api_type = azure_api_type
+                    openai.api_key = azure_api_key
                     openai.api_base = azure_api_base
                     r = await openai.ChatCompletion.acreate(
                         engine=self.model,
@@ -192,6 +194,7 @@ class ChatGPT:
                 # elif self.model == "text-davinci-003":
                 #     prompt = self._generate_prompt(message, dialog_messages, chat_mode)
                 #     openai.api_type = azure_api_type
+                #     openai.api_key = azure_api_key
                 #     openai.api_base = azure_api_base
                 #     r = await openai.Completion.acreate(
                 #         engine=self.model,
@@ -256,6 +259,7 @@ class ChatGPT:
                 if self.model in {"gpt-4-32k", "gpt-35-turbo-16k"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     openai.api_type = azure_api_type
+                    openai.api_key = azure_api_key
                     openai.api_base = azure_api_base                   
                     r_gen = await openai.ChatCompletion.acreate(
                         engine=self.model,
@@ -316,6 +320,7 @@ class ChatGPT:
                 # elif self.model == "text-davinci-003":
                 #     prompt = self._generate_prompt(message, dialog_messages, chat_mode)
                 #     openai.api_type = azure_api_type
+                #     openai.api_key = azure_api_key
                 #     openai.api_base = azure_api_base                    
                 #     r_gen = await openai.Completion.acreate(
                 #         engine=self.model,
@@ -354,6 +359,7 @@ class ChatGPT:
             token_count_model = "gpt-3.5-turbo-16k"
         
         openai.api_type = azure_api_type
+        openai.api_key = azure_api_key
         openai.api_base = azure_api_base
         n_dialog_messages_before = len(dialog_messages)
         answer = None
@@ -563,6 +569,7 @@ class ChatGPT:
         
         # Reset OpenAI API type and base
         openai.api_type = azure_api_type
+        openai.api_key = azure_api_key
         openai.api_base = azure_api_base     
         # Initialize a document
         documents = SimpleDirectoryReader(data_folder).load_data()
@@ -590,6 +597,7 @@ class ChatGPT:
         
         # Reset OpenAI API type and base
         openai.api_type = azure_api_type
+        openai.api_key = azure_api_key
         openai.api_base = azure_api_base        
         # Initialize a document
         documents = SimpleDirectoryReader(data_folder).load_data()
@@ -700,6 +708,7 @@ async def text_to_speech(text, output_path, language):
 async def generate_images(prompt, n_images=4):
     
     openai.api_type = azure_api_type
+    openai.api_key = azure_api_dallekey
     openai.api_base = azure_api_dallebase
     r = await openai.Image.acreate(
         prompt=prompt,
@@ -713,6 +722,7 @@ async def generate_images(prompt, n_images=4):
 async def is_content_acceptable(prompt):
     
     openai.api_type = azure_api_type
+    openai.api_key = azure_api_key
     openai.api_base = azure_api_base
     r = await openai.Moderation.acreate(input=prompt)
     return not all(r.results[0].categories.values())
