@@ -20,6 +20,7 @@ openai_api_dallebase = config_yaml["openai_api_dallebase"]
 openai_api_version = config_yaml["openai_api_version"]
 openai_embeddingapi_version = config_yaml["openai_embeddingapi_version"]
 
+llama2_api_key = config_yaml["llama2_api_key"]
 llama2_api_base = config_yaml["llama2_api_base"]
 
 cohere_api_key = config_yaml["cohere_api_key"]

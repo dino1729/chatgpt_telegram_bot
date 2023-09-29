@@ -1,4 +1,4 @@
-available_text_models: ["gpt-4-32k", "gpt-35-turbo-16k", "cohere", "palm", "wizardlm-7b-8k-m"]
+available_text_models: ["gpt-4-32k", "gpt-35-turbo-16k", "cohere", "palm", "wizardvicuna7b-uncensored-hf"]
 
 info:
 
@@ -54,17 +54,17 @@ info:
       Fast: 2
       Cheap: 3
 
-  wizardlm-7b-8k-m:
+  wizardvicuna7b-uncensored-hf:
     type: chat_completion
-    name: WizardLM
-    description: Even though WizardLM still lags behind ChatGPT in some aspects, our findings suggest that fine-tuning with AI-evolved instructions is a promising direction for enhancing LLMs. In GPT-4 automatic evaluation, WizardLM achieves more than 90\% capacity of ChatGPT on 17 out of 29 skills. 
+    name: WizardVicuna7B
+    description: This is an uncensored model of wizard-vicuna-7b trained against LLaMA-7B with a subset of the dataset - responses that contained alignment / moralizing were removed. The intent is to train a WizardLM that doesn't have alignment built-in, so that alignment (of any sort) can be added separately with for example with a RLHF LoRA. In GPT-4 automatic evaluation, WizardLM achieves more than 90\% capacity of ChatGPT on 17 out of 29 skills. 
 
-    price_per_1000_input_tokens: 0.02
-    price_per_1000_output_tokens: 0.02
+    price_per_1000_input_tokens: 0.002
+    price_per_1000_output_tokens: 0.002
 
     scores:
-      Smart: 3
-      Fast: 2
+      Smart: 2
+      Fast: 3
       Cheap: 4
 
   dalle-2:

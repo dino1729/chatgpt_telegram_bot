@@ -57,6 +57,7 @@ azure_api_type = "azure"
 azure_api_base = config.openai_api_base
 azure_api_dallebase = config.openai_api_dallebase
 llama2_api_type = "open_ai"
+llama2_api_key = config.llama2_api_key
 llama2_api_base = config.llama2_api_base
 azurespeechkey = config.azurespeechkey
 azurespeechregion = config.azurespeechregion
@@ -149,7 +150,7 @@ OPENAI_COMPLETION_OPTIONS = {
 
 class ChatGPT:
     def __init__(self, model="gpt-4-32k"):
-        assert model in {"gpt-4-32k", "gpt-35-turbo-16k", "cohere", "palm", "wizardlm-7b-8k-m"}, f"Unknown model: {model}"
+        assert model in {"gpt-4-32k", "gpt-35-turbo-16k", "cohere", "palm", "wizardvicuna7b-uncensored-hf"}, f"Unknown model: {model}"
         self.model = model
 
     async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
@@ -180,9 +181,10 @@ class ChatGPT:
                     )
                     answer = r.choices[0].message["content"]
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
-                elif self.model == "wizardlm-7b-8k-m":
+                elif self.model == "wizardvicuna7b-uncensored-hf":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     openai.api_type = llama2_api_type
+                    openai.api_key = llama2_api_key
                     openai.api_base = llama2_api_base
                     r = await openai.ChatCompletion.acreate(
                         model=self.model,
@@ -278,9 +280,10 @@ class ChatGPT:
                                 n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
                                 n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                                 yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
-                elif self.model == "wizardlm-7b-8k-m":
+                elif self.model == "wizardvicuna7b-uncensored-hf":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     openai.api_type = llama2_api_type
+                    openai.api_key = llama2_api_key
                     openai.api_base = llama2_api_base
                     r_gen = await openai.ChatCompletion.acreate(
                         model=self.model,
