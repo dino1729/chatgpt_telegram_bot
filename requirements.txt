@@ -10,7 +10,9 @@ uuid
 requests
 chardet
 llama-index==0.8.33
+pyowm
 langchain==0.0.302
+llama-hub==0.0.34
 newspaper3k
 beautifulsoup4
 cohere

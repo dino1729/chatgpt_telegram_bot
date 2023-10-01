@@ -28,6 +28,9 @@ from llama_index.indices.postprocessor import SimilarityPostprocessor
 from llama_index.text_splitter import SentenceSplitter
 from llama_index.node_parser import SimpleNodeParser
 from llama_index.prompts import PromptTemplate
+from llama_index.agent import OpenAIAgent
+from llama_hub.tools.weather.base import OpenWeatherMapToolSpec
+from llama_hub.tools.bing_search.base import BingSearchToolSpec
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
@@ -53,6 +56,7 @@ azure_api_version = config.openai_api_version
 bing_api_key = config.bing_api_key
 bing_endpoint = config.bing_endpoint
 bing_news_endpoint = config.bing_news_endpoint
+
 azure_api_type = "azure"
 azure_api_base = config.openai_api_base
 azure_api_dallebase = config.openai_api_dallebase
@@ -62,6 +66,8 @@ llama2_api_base = config.llama2_api_base
 azurespeechkey = config.azurespeechkey
 azurespeechregion = config.azurespeechregion
 azuretexttranslatorkey = config.azuretexttranslatorkey
+
+openweather_api_key = config.openweather_api_key
 
 # Set Azure OpenAI Defaults
 openai.api_type = azure_api_type
@@ -374,6 +380,11 @@ class ChatGPT:
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
                     n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                     yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+                elif "weather" in message.lower():
+                    answer = self._get_weather_data(message)
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
+                    n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+                    yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
                 else:
                     answer = self._get_bing_results(message)
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
@@ -567,6 +578,35 @@ class ChatGPT:
         bingsummary = str(self._summarize(UPLOAD_FOLDER)).strip()
 
         return bingsummary
+    
+    def _get_bing_agent(query):
+    
+        bing_tool = BingSearchToolSpec(
+            api_key=bing_api_key,
+        )
+    
+        agent = OpenAIAgent.from_tools(
+            bing_tool.to_tool_list(),
+            llm=llm,
+            verbose=False,
+        )
+    
+        return str(agent.chat(query))
+    
+    def _get_weather_data(query):
+    
+        # Initialize OpenWeatherMapToolSpec
+        weather_tool = OpenWeatherMapToolSpec(
+            key=openweather_api_key,
+        )
+
+        agent = OpenAIAgent.from_tools(
+            weather_tool.to_tool_list(),
+            llm=llm,
+            verbose=False,
+        )
+
+        return str(agent.chat(query))
 
     def _summarize(self, data_folder):
         

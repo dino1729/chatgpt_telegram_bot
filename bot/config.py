@@ -34,6 +34,8 @@ azurespeechkey = config_yaml["azurespeechkey"]
 azurespeechregion = config_yaml["azurespeechregion"]
 azuretexttranslatorkey = config_yaml["azuretexttranslatorkey"]
 
+openweather_api_key = config_yaml["openweather_api_key"]
+
 use_chatgpt_api = config_yaml.get("use_chatgpt_api", True)
 allowed_telegram_usernames = config_yaml["allowed_telegram_usernames"]
 new_dialog_timeout = config_yaml["new_dialog_timeout"]
