@@ -579,7 +579,7 @@ class ChatGPT:
 
         return bingsummary
     
-    def _get_bing_agent(query):
+    def _get_bing_agent(self, query):
     
         bing_tool = BingSearchToolSpec(
             api_key=bing_api_key,
@@ -593,7 +593,7 @@ class ChatGPT:
     
         return str(agent.chat(query))
     
-    def _get_weather_data(query):
+    def _get_weather_data(self, query):
     
         # Initialize OpenWeatherMapToolSpec
         weather_tool = OpenWeatherMapToolSpec(
