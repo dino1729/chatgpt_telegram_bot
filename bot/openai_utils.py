@@ -595,7 +595,12 @@ class ChatGPT:
         return bingsummary
     
     def _get_bing_agent(self, query):
-    
+
+        # Reset OpenAI API type and base
+        openai.api_type = azure_api_type
+        openai.api_key = azure_api_key
+        openai.api_base = azure_api_base
+
         bing_tool = BingSearchToolSpec(
             api_key=bing_api_key,
         )
@@ -609,7 +614,12 @@ class ChatGPT:
         return str(agent.chat(query))
     
     def _get_weather_data(self, query):
-    
+
+        # Reset OpenAI API type and base
+        openai.api_type = azure_api_type
+        openai.api_key = azure_api_key
+        openai.api_base = azure_api_base
+
         # Initialize OpenWeatherMapToolSpec
         weather_tool = OpenWeatherMapToolSpec(
             key=openweather_api_key,
