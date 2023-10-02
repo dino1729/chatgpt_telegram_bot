@@ -47,12 +47,12 @@ if not os.path.exists(SUMMARY_FOLDER ):
 if not os.path.exists(VECTOR_FOLDER ):
     os.makedirs(VECTOR_FOLDER)
 
-embedding_api_version = config.openai_embeddingapi_version
+azure_embeddingapi_version = config.openai_embeddingapi_version
 cohere_api_key = config.cohere_api_key
 google_palm_api_key = config.google_palm_api_key
 azure_api_key = config.openai_api_key
 azure_api_dallekey = config.openai_api_dallekey
-azure_api_version = config.openai_api_version
+azure_chatapi_version = config.openai_chatapi_version
 bing_api_key = config.bing_api_key
 bing_endpoint = config.bing_endpoint
 bing_news_endpoint = config.bing_news_endpoint
@@ -73,13 +73,27 @@ openweather_api_key = config.openweather_api_key
 openai.api_type = azure_api_type
 openai.api_base =  azure_api_base
 openai.api_key = azure_api_key
-openai.api_version = azure_api_version
+openai.api_version = azure_chatapi_version
 
-max_input_size = 96000
 num_output = 1024
 max_chunk_overlap_ratio = 0.1
 chunk_size = 256
-context_window = 32000
+EMBEDDINGS_DEPLOYMENT_NAME = "text-embedding-ada-002"
+# Check if user set the davinci model flag
+gpt4_flag = False
+if gpt4_flag:
+    LLM_DEPLOYMENT_NAME = "gpt-4-32k"
+    LLM_MODEL_NAME = "gpt-4-32k"
+    openai.api_version = azure_chatapi_version
+    max_input_size = 96000
+    context_window = 32000
+else:
+    LLM_DEPLOYMENT_NAME = "gpt-35-turbo-16k"
+    LLM_MODEL_NAME = "gpt-35-turbo-16k"
+    openai.api_version = azure_chatapi_version
+    max_input_size = 48000
+    context_window = 16000
+
 prompt_helper = PromptHelper(max_input_size, num_output, max_chunk_overlap_ratio)
 text_splitter = SentenceSplitter(
     separator=" ",
@@ -87,27 +101,27 @@ text_splitter = SentenceSplitter(
     chunk_overlap=20,
     paragraph_separator="\n\n\n",
     secondary_chunking_regex="[^,.;。]+[,.;。]?",
-    tokenizer=tiktoken.encoding_for_model("gpt-4").encode
+    tokenizer=tiktoken.encoding_for_model("gpt-35-turbo").encode
 )
 node_parser = SimpleNodeParser(text_splitter=text_splitter)
 llm = AzureOpenAI(
-    engine="gpt-4-32k",
-    model="gpt-4-32k",
+    engine=LLM_DEPLOYMENT_NAME, 
+    model=LLM_MODEL_NAME,
     openai_api_key=azure_api_key,
     openai_api_base=azure_api_base,
-    openai_api_type=azure_api_key,
-    openai_api_version=azure_api_version,
+    openai_api_type=azure_api_type,
+    openai_api_version=azure_chatapi_version,
     temperature=0.5,
-    max_tokens=1024,
+    max_tokens=num_output,
 )
 embedding_llm = LangchainEmbedding(
     OpenAIEmbeddings(
-        engine="text-embedding-002",
-        model="text-embedding-002",
+        engine=EMBEDDINGS_DEPLOYMENT_NAME,
+        model=EMBEDDINGS_DEPLOYMENT_NAME,
         openai_api_key=azure_api_key,
         openai_api_base=azure_api_base,
         openai_api_type=azure_api_type,
-        openai_api_version=embedding_api_version,
+        openai_api_version=azure_embeddingapi_version,
         chunk_size=16,
         max_retries=3,
     ),
@@ -123,6 +137,7 @@ service_context = ServiceContext.from_defaults(
 
 )
 set_global_service_context(service_context)
+
 sum_template = (
     "You are a world-class text summarizer connected to the internet. We have provided context information from the internet below. \n"
     "---------------------\n"
@@ -149,14 +164,14 @@ qa_template = PromptTemplate(ques_template)
 OPENAI_COMPLETION_OPTIONS = {
     "temperature": 0.5,
     "max_tokens": 1024,
-    "top_p": 1,
-    "frequency_penalty": 0,
-    "presence_penalty": 0
+    "top_p": 0.9,
+    "frequency_penalty": 0.6,
+    "presence_penalty": 0.1
 }
 
 class ChatGPT:
-    def __init__(self, model="gpt-4-32k"):
-        assert model in {"gpt-4-32k", "gpt-35-turbo-16k", "cohere", "palm", "wizardvicuna7b-uncensored-hf"}, f"Unknown model: {model}"
+    def __init__(self, model="gpt-4"):
+        assert model in {"gpt-4", "gpt-35-turbo-16k", "cohere", "palm", "wizardvicuna7b-uncensored-hf"}, f"Unknown model: {model}"
         self.model = model
 
     async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
@@ -165,8 +180,8 @@ class ChatGPT:
         
         # Convert model names for token counting
         token_count_model = self.model
-        if token_count_model == "gpt-4-32k":
-            token_count_model = "gpt-4-32k"
+        if token_count_model == "gpt-4":
+            token_count_model = "gpt-4"
         elif token_count_model == "gpt-35-turbo-16k":
             token_count_model = "gpt-3.5-turbo-16k"
 
@@ -174,7 +189,7 @@ class ChatGPT:
         answer = None
         while answer is None:
             try:
-                if self.model in {"gpt-4-32k", "gpt-35-turbo-16k"}:
+                if self.model in {"gpt-4", "gpt-35-turbo-16k"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     openai.api_type = azure_api_type
                     openai.api_key = azure_api_key
@@ -254,8 +269,8 @@ class ChatGPT:
         
         # Convert model names for token counting
         token_count_model = self.model
-        if token_count_model == "gpt-4-32k":
-            token_count_model = "gpt-4-32k"
+        if token_count_model == "gpt-4":
+            token_count_model = "gpt-4"
         elif token_count_model == "gpt-35-turbo-16k":
             token_count_model = "gpt-3.5-turbo-16k"
 
@@ -264,7 +279,7 @@ class ChatGPT:
         while answer is None:
             try:
                 # Chat models
-                if self.model in {"gpt-4-32k", "gpt-35-turbo-16k"}:
+                if self.model in {"gpt-4", "gpt-35-turbo-16k"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     openai.api_type = azure_api_type
                     openai.api_key = azure_api_key
@@ -362,8 +377,8 @@ class ChatGPT:
         
         # Convert model names for token counting
         token_count_model = self.model
-        if token_count_model == "gpt-4-32k":
-            token_count_model = "gpt-4-32k"
+        if token_count_model == "gpt-4":
+            token_count_model = "gpt-4"
         elif token_count_model == "gpt-35-turbo-16k":
             token_count_model = "gpt-3.5-turbo-16k"
         
@@ -449,7 +464,7 @@ class ChatGPT:
         elif model == "gpt-4":
             tokens_per_message = 3
             tokens_per_name = 1
-        elif model == "gpt-4-32k":
+        elif model == "gpt-4":
             tokens_per_message = 3
             tokens_per_name = 1
         else:

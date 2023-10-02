@@ -17,7 +17,7 @@ openai_api_key = config_yaml["openai_api_key"]
 openai_api_dallekey = config_yaml["openai_api_dallekey"]
 openai_api_base = config_yaml["openai_api_base"]
 openai_api_dallebase = config_yaml["openai_api_dallebase"]
-openai_api_version = config_yaml["openai_api_version"]
+openai_chatapi_version = config_yaml["openai_chatapi_version"]
 openai_embeddingapi_version = config_yaml["openai_embeddingapi_version"]
 
 llama2_api_key = config_yaml["llama2_api_key"]

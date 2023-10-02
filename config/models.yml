@@ -1,11 +1,11 @@
-available_text_models: ["gpt-4-32k", "gpt-35-turbo-16k", "cohere", "palm", "wizardvicuna7b-uncensored-hf"]
+available_text_models: ["gpt-4", "gpt-35-turbo-16k", "cohere", "palm", "wizardvicuna7b-uncensored-hf"]
 
 info:
 
-  gpt-4-32k:
+  gpt-4:
     type: chat_completion
-    name: GPT-4-32K
-    description: GPT-4 with 32k tokens is the <b>smartest</b> and most advanced model in the world. But it is slower and not as cost-efficient as ChatGPT. Best choice for <b>complex</b> intellectual tasks.
+    name: GPT-4
+    description: GPT-4 is the <b>smartest</b> and most advanced model in the world. But it is slower and not as cost-efficient as ChatGPT. Best choice for <b>complex</b> intellectual tasks.
 
     price_per_1000_input_tokens: 0.03
     price_per_1000_output_tokens: 0.06
