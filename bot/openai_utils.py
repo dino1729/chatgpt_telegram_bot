@@ -781,7 +781,7 @@ async def generate_images(prompt, n_images=4):
     r = await openai.Image.acreate(
         prompt=prompt,
         n=n_images,
-        size="512x512",
+        size="1024x1024",
         api_version="2023-06-01-preview"
         )
     image_urls = [item.url for item in r.data]

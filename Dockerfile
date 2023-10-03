@@ -1,4 +1,4 @@
-FROM python:latest
+FROM python:3.11.4
 
 RUN \
     set -eux; \
@@ -6,6 +6,7 @@ RUN \
     DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-install-recommends \
     python3-pip \
     build-essential \
+    libyaml-dev \
     python3-venv \
     ffmpeg \
     git \
