@@ -7,6 +7,7 @@ import openai
 import os
 import logging
 import sys
+import json
 from newspaper import Article
 from bs4 import BeautifulSoup
 import azure.cognitiveservices.speech as speechsdk
@@ -63,6 +64,7 @@ azure_api_dallebase = config.openai_api_dallebase
 llama2_api_type = "open_ai"
 llama2_api_key = config.llama2_api_key
 llama2_api_base = config.llama2_api_base
+rvctts_api_base = config.rvctts_api_base
 azurespeechkey = config.azurespeechkey
 azurespeechregion = config.azurespeechregion
 azuretexttranslatorkey = config.azuretexttranslatorkey
@@ -772,6 +774,27 @@ async def text_to_speech(text, output_path, language):
         with open(output_path, "wb") as audio_file:
             audio_file.write(audio_data)
             #print("Speech synthesized and saved to WAV file.")
+
+async def local_text_to_speech(text, output_path, model_name):
+    
+    url = rvctts_api_base
+    payload = json.dumps({
+      "speaker_name": model_name,
+      "input_text": text,
+      "emotion": "Angry",
+      "speed": 1.5
+    })
+    headers = {
+      'Content-Type': 'application/json'
+    }
+    response = requests.request("POST", url, headers=headers, data=payload)
+    if response.status_code == 200:
+        audio_content = response.content
+        # Save the audio to a file
+        with open(output_path, "wb") as audio_file:
+            audio_file.write(audio_content)
+    else:
+        print("Error:", response.text)
 
 async def generate_images(prompt, n_images=4):
     

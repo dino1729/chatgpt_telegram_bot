@@ -475,6 +475,7 @@ async def voice_message_handle(update: Update, context: CallbackContext):
 
     user_id = update.message.from_user.id
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
+    chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
 
     voice = update.message.voice
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -505,7 +506,10 @@ async def voice_message_handle(update: Update, context: CallbackContext):
         tmp_dir_path = Path(tmp_dir)
         tts_output_path = tmp_dir_path / "bot_response.mp3"
         translated_message = await openai_utils.translate_text(message, transcribed_text[1])
-        await openai_utils.text_to_speech(translated_message, tts_output_path, transcribed_text[1])
+        if chat_mode == "rick_sanchez":
+            await openai_utils.local_text_to_speech(message, tts_output_path, "rick_sanchez")
+        else:
+            await openai_utils.text_to_speech(translated_message, tts_output_path, transcribed_text[1])
         await context.bot.send_audio(update.message.chat_id, audio=tts_output_path.open("rb"))
 
 async def generate_image_handle(update: Update, context: CallbackContext, message=None):
