@@ -507,7 +507,7 @@ async def voice_message_handle(update: Update, context: CallbackContext):
         tts_output_path = tmp_dir_path / "bot_response.mp3"
         translated_message = await openai_utils.translate_text(message, transcribed_text[1])
         if chat_mode == "rick_sanchez":
-            await openai_utils.local_text_to_speech(message, tts_output_path, "rick_sanchez")
+            await openai_utils.local_text_to_speech(message, tts_output_path, "ricksanchez")
         else:
             await openai_utils.text_to_speech(translated_message, tts_output_path, transcribed_text[1])
         await context.bot.send_audio(update.message.chat_id, audio=tts_output_path.open("rb"))
