@@ -2,8 +2,10 @@ import config
 import uuid, requests
 import cohere
 import google.generativeai as palm
+import google.generativeai as genai
 import tiktoken
-import openai
+from openai import OpenAI
+from openai import AzureOpenAI as OpenAIAzure
 import os
 import logging
 import sys
@@ -11,12 +13,11 @@ import json
 from newspaper import Article
 from bs4 import BeautifulSoup
 import azure.cognitiveservices.speech as speechsdk
-from langchain.embeddings import OpenAIEmbeddings
+from llama_index.embeddings import AzureOpenAIEmbedding
 from llama_index.llms import AzureOpenAI
 from llama_index import (
     VectorStoreIndex,
     SummaryIndex,
-    LangchainEmbedding,
     PromptHelper,
     SimpleDirectoryReader,
     ServiceContext,
@@ -26,8 +27,7 @@ from llama_index import (
 from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.indices.postprocessor import SimilarityPostprocessor
-from llama_index.text_splitter import SentenceSplitter
-from llama_index.node_parser import SimpleNodeParser
+from llama_index.node_parser import SemanticSplitterNodeParser
 from llama_index.prompts import PromptTemplate
 from llama_index.agent import OpenAIAgent
 from llama_hub.tools.weather.base import OpenWeatherMapToolSpec
@@ -48,95 +48,87 @@ if not os.path.exists(SUMMARY_FOLDER ):
 if not os.path.exists(VECTOR_FOLDER ):
     os.makedirs(VECTOR_FOLDER)
 
-azure_embeddingapi_version = config.openai_embeddingapi_version
+
 cohere_api_key = config.cohere_api_key
-google_palm_api_key = config.google_palm_api_key
-azure_api_key = config.openai_api_key
-azure_api_dallekey = config.openai_api_dallekey
-azure_chatapi_version = config.openai_chatapi_version
+google_api_key = config.google_api_key
+
+azure_api_type = "azure"
+azure_api_base = config.azure_api_base
+azure_api_key = config.azure_api_key
+azure_chatapi_version = config.azure_chatapi_version
+azure_embeddingapi_version = config.azure_embeddingapi_version
+
 bing_api_key = config.bing_api_key
 bing_endpoint = config.bing_endpoint
 bing_news_endpoint = config.bing_news_endpoint
 
-azure_api_type = "azure"
-azure_api_base = config.openai_api_base
-azure_api_dallebase = config.openai_api_dallebase
 llama2_api_type = "open_ai"
 llama2_api_key = config.llama2_api_key
 llama2_api_base = config.llama2_api_base
+
 rvctts_api_base = config.rvctts_api_base
+
 azurespeechkey = config.azurespeechkey
 azurespeechregion = config.azurespeechregion
 azuretexttranslatorkey = config.azuretexttranslatorkey
 
 openweather_api_key = config.openweather_api_key
 
-# Set Azure OpenAI Defaults
-openai.api_type = azure_api_type
-openai.api_base =  azure_api_base
-openai.api_key = azure_api_key
-openai.api_version = azure_chatapi_version
-
 num_output = 1024
 max_chunk_overlap_ratio = 0.1
 chunk_size = 256
 EMBEDDINGS_DEPLOYMENT_NAME = "text-embedding-ada-002"
 # Check if user set the davinci model flag
-gpt4_flag = False
+client = OpenAIAzure(
+    api_key=azure_api_key,
+    azure_endpoint=azure_api_base,
+    api_version=azure_chatapi_version,
+)
+# Check if user set the davinci model flag
+gpt4_flag = True
 if gpt4_flag:
-    LLM_DEPLOYMENT_NAME = "gpt-4-32k"
-    LLM_MODEL_NAME = "gpt-4-32k"
-    openai.api_version = azure_chatapi_version
-    max_input_size = 96000
-    context_window = 32000
+    LLM_DEPLOYMENT_NAME = "gpt-4"
+    LLM_MODEL_NAME = "gpt-4"
+    max_input_size = 128000
+    context_window = 128000
+    print("Using gpt4 model.")
 else:
     LLM_DEPLOYMENT_NAME = "gpt-35-turbo-16k"
     LLM_MODEL_NAME = "gpt-35-turbo-16k"
-    openai.api_version = azure_chatapi_version
     max_input_size = 48000
     context_window = 16000
+    print("Using gpt-35-turbo-16k model.")
 
 prompt_helper = PromptHelper(max_input_size, num_output, max_chunk_overlap_ratio)
-text_splitter = SentenceSplitter(
-    separator=" ",
-    chunk_size=chunk_size,
-    chunk_overlap=20,
-    paragraph_separator="\n\n\n",
-    secondary_chunking_regex="[^,.;。]+[,.;。]?",
-    tokenizer=tiktoken.encoding_for_model("gpt-3.5-turbo").encode
-)
-node_parser = SimpleNodeParser(text_splitter=text_splitter)
+
 llm = AzureOpenAI(
     engine=LLM_DEPLOYMENT_NAME, 
     model=LLM_MODEL_NAME,
-    openai_api_key=azure_api_key,
-    openai_api_base=azure_api_base,
-    openai_api_type=azure_api_type,
-    openai_api_version=azure_chatapi_version,
-    temperature=0.5,
+    api_key=azure_api_key,
+    azure_endpoint=azure_api_base,
+    api_version=azure_chatapi_version,
+    temperature=0.25,
     max_tokens=num_output,
 )
-embedding_llm = LangchainEmbedding(
-    OpenAIEmbeddings(
-        engine=EMBEDDINGS_DEPLOYMENT_NAME,
-        model=EMBEDDINGS_DEPLOYMENT_NAME,
-        openai_api_key=azure_api_key,
-        openai_api_base=azure_api_base,
-        openai_api_type=azure_api_type,
-        openai_api_version=azure_embeddingapi_version,
-        chunk_size=16,
-        max_retries=3,
-    ),
+embedding_llm =AzureOpenAIEmbedding(
+    model=EMBEDDINGS_DEPLOYMENT_NAME,
+    azure_deployment=EMBEDDINGS_DEPLOYMENT_NAME,
+    api_key=azure_api_key,
+    azure_endpoint=azure_api_base,
+    api_version=azure_embeddingapi_version,
+    max_retries=3,
     embed_batch_size=1,
 )
+
+splitter = SemanticSplitterNodeParser(buffer_size=1, breakpoint_percentile_threshold=95, embed_model=embedding_llm)
+
 service_context = ServiceContext.from_defaults(
     llm=llm,
     embed_model=embedding_llm,
     prompt_helper=prompt_helper,
     chunk_size=chunk_size,
     context_window=context_window,
-    node_parser=node_parser,
-
+    node_parser=splitter,
 )
 set_global_service_context(service_context)
 
@@ -173,7 +165,7 @@ OPENAI_COMPLETION_OPTIONS = {
 
 class ChatGPT:
     def __init__(self, model="gpt-4"):
-        assert model in {"gpt-4", "gpt-35-turbo-16k", "cohere", "palm", "wizardvicuna7b-uncensored-hf"}, f"Unknown model: {model}"
+        assert model in {"gpt-4-turbo", "gpt-35-turbo-16k", "cohere", "palm", "gemini", "mixtral8x7b"}, f"Unknown model: {model}"
         self.model = model
 
     async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
@@ -182,7 +174,7 @@ class ChatGPT:
         
         # Convert model names for token counting
         token_count_model = self.model
-        if token_count_model == "gpt-4":
+        if token_count_model == "gpt-4-turbo":
             token_count_model = "gpt-4"
         elif token_count_model == "gpt-35-turbo-16k":
             token_count_model = "gpt-3.5-turbo-16k"
@@ -191,43 +183,33 @@ class ChatGPT:
         answer = None
         while answer is None:
             try:
-                if self.model in {"gpt-4", "gpt-35-turbo-16k"}:
+                if self.model in {"gpt-4-turbo", "gpt-35-turbo-16k"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
-                    openai.api_type = azure_api_type
-                    openai.api_key = azure_api_key
-                    openai.api_base = azure_api_base
-                    r = await openai.ChatCompletion.acreate(
-                        engine=self.model,
+                    client = OpenAIAzure(
+                        api_key=azure_api_key,
+                        azure_endpoint=azure_api_base,
+                        api_version=azure_chatapi_version,
+                    )
+                    r = await client.chat.completions.create(
+                        model=self.model,
                         messages=messages,
-                        api_version=openai.api_version,
                         **OPENAI_COMPLETION_OPTIONS
                     )
                     answer = r.choices[0].message["content"]
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
-                elif self.model == "wizardvicuna7b-uncensored-hf":
+                elif self.model == "mixtral8x7b":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
-                    openai.api_type = llama2_api_type
-                    openai.api_key = llama2_api_key
-                    openai.api_base = llama2_api_base
-                    r = await openai.ChatCompletion.acreate(
+                    local_client = OpenAI(
+                        api_key = llama2_api_key,
+                        api_base = llama2_api_base
+                    )
+                    r = await local_client.chat.completions.acreate(
                         model=self.model,
                         messages=messages,
                         **OPENAI_COMPLETION_OPTIONS
                     )
                     answer = r.choices[0].message["content"]
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
-                # elif self.model == "text-davinci-003":
-                #     prompt = self._generate_prompt(message, dialog_messages, chat_mode)
-                #     openai.api_type = azure_api_type
-                #     openai.api_key = azure_api_key
-                #     openai.api_base = azure_api_base
-                #     r = await openai.Completion.acreate(
-                #         engine=self.model,
-                #         prompt=prompt,
-                #         **OPENAI_COMPLETION_OPTIONS
-                #     )
-                #     answer = r.choices[0].text
-                #     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
                 elif self.model == "cohere":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     co = cohere.Client(cohere_api_key)
@@ -241,7 +223,7 @@ class ChatGPT:
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
                 elif self.model == "palm":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
-                    palm.configure(api_key=google_palm_api_key)
+                    palm.configure(api_key=google_api_key)
                     r = await palm.chat_async(
                         model="models/chat-bison-001",
                         messages=str(messages).replace("'", '"'),
@@ -249,13 +231,23 @@ class ChatGPT:
                     )
                     answer = r.last
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
+                elif self.model == "gemini":
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    genai.configure(api_key=google_api_key)
+                    gemini = genai.GenerativeModel('gemini-pro')
+                    r = await gemini.generate_content_async(str(messages).replace("'", '"'))
+                    answer = r.text
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
                 else:
                     raise ValueError(f"Unknown model: {self.model}")
 
                 answer = self._postprocess_answer(answer)
-            except openai.error.InvalidRequestError as e:  # too many tokens
+            # except OpenAI.error.InvalidRequestError as e:  # too many tokens
+            #     if len(dialog_messages) == 0:
+            #         raise ValueError("Dialog messages is reduced to zero, but still has too many tokens to make completion") from e
+            except Exception as e:
                 if len(dialog_messages) == 0:
-                    raise ValueError("Dialog messages is reduced to zero, but still has too many tokens to make completion") from e
+                    raise e
 
                 # forget first message in dialog_messages
                 dialog_messages = dialog_messages[1:]
@@ -271,7 +263,7 @@ class ChatGPT:
         
         # Convert model names for token counting
         token_count_model = self.model
-        if token_count_model == "gpt-4":
+        if token_count_model == "gpt-4-turbo":
             token_count_model = "gpt-4"
         elif token_count_model == "gpt-35-turbo-16k":
             token_count_model = "gpt-3.5-turbo-16k"
@@ -281,34 +273,36 @@ class ChatGPT:
         while answer is None:
             try:
                 # Chat models
-                if self.model in {"gpt-4", "gpt-35-turbo-16k"}:
+                if self.model in {"gpt-4-turbo", "gpt-35-turbo-16k"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
-                    openai.api_type = azure_api_type
-                    openai.api_key = azure_api_key
-                    openai.api_base = azure_api_base                   
-                    r_gen = await openai.ChatCompletion.acreate(
-                        engine=self.model,
+                    client = OpenAIAzure(
+                        api_key=azure_api_key,
+                        azure_endpoint=azure_api_base,
+                        api_version=azure_chatapi_version,
+                    )                 
+                    r_gen = client.chat.completions.create(
+                        model=self.model,
                         messages=messages,
-                        api_version=openai.api_version,
                         stream=True,
                         **OPENAI_COMPLETION_OPTIONS
                     )
                     answer = ""
-                    async for r_item in r_gen:
+                    for r_item in r_gen:
                         # Check if choices list is not empty
                         if r_item.choices:
                             delta = r_item.choices[0].delta
-                            if "content" in delta:
+                            if delta.content:
                                 answer += delta.content
                                 n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
                                 n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                                 yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
-                elif self.model == "wizardvicuna7b-uncensored-hf":
+                elif self.model == "mixtral8x7b":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
-                    openai.api_type = llama2_api_type
-                    openai.api_key = llama2_api_key
-                    openai.api_base = llama2_api_base
-                    r_gen = await openai.ChatCompletion.acreate(
+                    local_client = OpenAI(
+                        api_key = llama2_api_key,
+                        api_base = llama2_api_base
+                    )
+                    r_gen = await local_client.chat.completions.create(
                         model=self.model,
                         messages=messages,
                         **OPENAI_COMPLETION_OPTIONS
@@ -332,7 +326,7 @@ class ChatGPT:
                     yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
                 elif self.model == "palm":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
-                    palm.configure(api_key=google_palm_api_key)
+                    palm.configure(api_key=google_api_key)
                     r_gen = await palm.chat_async(
                         model="models/chat-bison-001",
                         messages=str(messages).replace("'", '"'),
@@ -342,28 +336,19 @@ class ChatGPT:
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
                     n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                     yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
-                # Text completion models
-                # elif self.model == "text-davinci-003":
-                #     prompt = self._generate_prompt(message, dialog_messages, chat_mode)
-                #     openai.api_type = azure_api_type
-                #     openai.api_key = azure_api_key
-                #     openai.api_base = azure_api_base                    
-                #     r_gen = await openai.Completion.acreate(
-                #         engine=self.model,
-                #         prompt=prompt,
-                #         stream=True,
-                #         **OPENAI_COMPLETION_OPTIONS
-                #     )
-                #     answer = ""
-                #     async for r_item in r_gen:
-                #         answer += r_item.choices[0].text
-                #         n_input_tokens, n_output_tokens = self._count_tokens_from_prompt(prompt, answer, model=token_count_model)
-                #         n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
-                #         yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
-
-                # answer = self._postprocess_answer(answer)
-
-            except openai.error.InvalidRequestError as e:  # too many tokens
+                elif self.model == "gemini":
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    genai.configure(api_key=google_api_key)
+                    gemini = genai.GenerativeModel('gemini-pro')
+                    r_gen = await gemini.generate_content_async(str(messages).replace("'", '"'))
+                    answer = r_gen.text
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
+                    n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+                    yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+            # except OpenAI.error.InvalidRequestError as e:  # too many tokens
+            #     if len(dialog_messages) == 0:
+            #         raise e
+            except Exception as e:
                 if len(dialog_messages) == 0:
                     raise e
 
@@ -379,14 +364,16 @@ class ChatGPT:
         
         # Convert model names for token counting
         token_count_model = self.model
-        if token_count_model == "gpt-4":
+        if token_count_model == "gpt-4-turbo":
             token_count_model = "gpt-4"
         elif token_count_model == "gpt-35-turbo-16k":
             token_count_model = "gpt-3.5-turbo-16k"
-        
-        openai.api_type = azure_api_type
-        openai.api_key = azure_api_key
-        openai.api_base = azure_api_base
+
+        client = OpenAIAzure(
+            api_key=azure_api_key,
+            azure_endpoint=azure_api_base,
+            api_version=azure_chatapi_version,
+        )
         n_dialog_messages_before = len(dialog_messages)
         answer = None
         while answer is None:
@@ -463,9 +450,6 @@ class ChatGPT:
         elif model == "gpt-3.5-turbo":
             tokens_per_message = 4
             tokens_per_name = -1
-        elif model == "gpt-4":
-            tokens_per_message = 3
-            tokens_per_name = 1
         elif model == "gpt-4":
             tokens_per_message = 3
             tokens_per_name = 1
@@ -598,11 +582,6 @@ class ChatGPT:
     
     def _get_bing_agent(self, query):
 
-        # Reset OpenAI API type and base
-        openai.api_type = azure_api_type
-        openai.api_key = azure_api_key
-        openai.api_base = azure_api_base
-
         bing_tool = BingSearchToolSpec(
             api_key=bing_api_key,
         )
@@ -616,11 +595,6 @@ class ChatGPT:
         return str(agent.chat(query))
     
     def _get_weather_data(self, query):
-
-        # Reset OpenAI API type and base
-        openai.api_type = azure_api_type
-        openai.api_key = azure_api_key
-        openai.api_base = azure_api_base
 
         # Initialize OpenWeatherMapToolSpec
         weather_tool = OpenWeatherMapToolSpec(
@@ -636,11 +610,7 @@ class ChatGPT:
         return str(agent.chat(query))
 
     def _summarize(self, data_folder):
-        
-        # Reset OpenAI API type and base
-        openai.api_type = azure_api_type
-        openai.api_key = azure_api_key
-        openai.api_base = azure_api_base     
+          
         # Initialize a document
         documents = SimpleDirectoryReader(data_folder).load_data()
         #index = VectorStoreIndex.from_documents(documents)
@@ -664,11 +634,7 @@ class ChatGPT:
         return response
 
     def _simple_query(self, data_folder, query):
-        
-        # Reset OpenAI API type and base
-        openai.api_type = azure_api_type
-        openai.api_key = azure_api_key
-        openai.api_base = azure_api_base        
+         
         # Initialize a document
         documents = SimpleDirectoryReader(data_folder).load_data()
         #index = VectorStoreIndex.from_documents(documents)
@@ -797,23 +763,22 @@ async def local_text_to_speech(text, output_path, model_name):
         print("Error:", response.text)
 
 async def generate_images(prompt, n_images=4):
-    
-    openai.api_type = azure_api_type
-    openai.api_key = azure_api_dallekey
-    openai.api_base = azure_api_dallebase
-    r = await openai.Image.acreate(
+
+    image_client = OpenAIAzure(
+        api_key=azure_api_key,
+        azure_endpoint=azure_api_base,
+        api_version="2023-12-01-preview"
+    )
+    r = image_client.images.generate(
+        model="dall-e-3",
         prompt=prompt,
         n=n_images,
         size="1024x1024",
-        api_version="2023-06-01-preview"
         )
     image_urls = [item.url for item in r.data]
     return image_urls
 
 async def is_content_acceptable(prompt):
     
-    openai.api_type = azure_api_type
-    openai.api_key = azure_api_key
-    openai.api_base = azure_api_base
-    r = await openai.Moderation.acreate(input=prompt)
+    r = await OpenAIAzure.Moderation.acreate(input=prompt)
     return not all(r.results[0].categories.values())

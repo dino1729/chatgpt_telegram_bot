@@ -1,5 +1,5 @@
 python-telegram-bot[rate-limiter]==20.1
-openai>=0.27.0
+openai
 tiktoken>=0.3.0
 # Note that PyYAML==6.0 breaks with Python3.12
 PyYAML==6.0
@@ -10,10 +10,10 @@ azure.cognitiveservices.speech
 uuid
 requests
 chardet
-llama-index==0.8.33
+llama-hub==0.0.78
 pyowm
-langchain==0.0.302
-llama-hub==0.0.34
+llama-index==0.9.46
+langchain>=0.0.329
 newspaper3k
 beautifulsoup4
 cohere

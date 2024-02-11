@@ -1,11 +1,11 @@
-available_text_models: ["gpt-4", "gpt-35-turbo-16k", "cohere", "palm", "wizardvicuna7b-uncensored-hf"]
+available_text_models: ["gpt-4-turbo", "gpt-35-turbo-16k", "cohere", "palm", "gemini", "mixtral8x7b"]
 
 info:
 
-  gpt-4:
+  gpt-4-turbo:
     type: chat_completion
-    name: GPT-4
-    description: GPT-4 is the <b>smartest</b> and most advanced model in the world. But it is slower and not as cost-efficient as ChatGPT. Best choice for <b>complex</b> intellectual tasks.
+    name: GPT-4-Turbo
+    description: GPT-4-Turbo is the <b>smartest</b> and most advanced model in the world. But it is slower and not as cost-efficient as ChatGPT. Best choice for <b>complex</b> intellectual tasks.
 
     price_per_1000_input_tokens: 0.03
     price_per_1000_output_tokens: 0.06
@@ -13,7 +13,7 @@ info:
     scores:
       Smart: 5
       Fast: 2
-      Cheap: 2
+      Cheap: 4
 
   gpt-35-turbo-16k:
     type: chat_completion
@@ -54,10 +54,23 @@ info:
       Fast: 2
       Cheap: 3
 
-  wizardvicuna7b-uncensored-hf:
+  gemini:
     type: chat_completion
-    name: WizardVicuna7B
-    description: This is an uncensored model of wizard-vicuna-7b trained against LLaMA-7B with a subset of the dataset - responses that contained alignment / moralizing were removed. The intent is to train a WizardLM that doesn't have alignment built-in, so that alignment (of any sort) can be added separately with for example with a RLHF LoRA. In GPT-4 automatic evaluation, WizardLM achieves more than 90\% capacity of ChatGPT on 17 out of 29 skills. 
+    name: Gemini
+    description: Gemini (Gemini Pro) is Google's LLM chat product, based on Transformers which succeeded PaLM. This is the latest and greatest model from Google.
+
+    price_per_1000_input_tokens: 0.02
+    price_per_1000_output_tokens: 0.02
+
+    scores:
+      Smart: 3
+      Fast: 2
+      Cheap: 3
+
+  mixtral8x7b:
+    type: chat_completion
+    name: Mixtral 8x7B
+    description: Mixtral 8x7B, a high-quality sparse mixture of experts model (SMoE) with open weights. Licensed under Apache 2.0. Mixtral outperforms Llama 2 70B on most benchmarks with 6x faster inference. It is the strongest open-weight model with a permissive license and the best model overall regarding cost/performance trade-offs. In particular, it matches or outperforms GPT3.5 on most standard benchmarks.
 
     price_per_1000_input_tokens: 0.002
     price_per_1000_output_tokens: 0.002
@@ -67,7 +80,7 @@ info:
       Fast: 3
       Cheap: 4
 
-  dalle-2:
+  dall-e-3:
      type: image
      price_per_1_image: 0.018  # 512x512
 

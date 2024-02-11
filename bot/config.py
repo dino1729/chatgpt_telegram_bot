@@ -13,12 +13,10 @@ config_env = dotenv.dotenv_values(config_dir / "config.env")
 
 # config parameters
 telegram_token = config_yaml["telegram_token"]
-openai_api_key = config_yaml["openai_api_key"]
-openai_api_dallekey = config_yaml["openai_api_dallekey"]
-openai_api_base = config_yaml["openai_api_base"]
-openai_api_dallebase = config_yaml["openai_api_dallebase"]
-openai_chatapi_version = config_yaml["openai_chatapi_version"]
-openai_embeddingapi_version = config_yaml["openai_embeddingapi_version"]
+azure_api_base = config_yaml["azure_api_base"]
+azure_api_key = config_yaml["azure_api_key"]
+azure_chatapi_version = config_yaml["azure_chatapi_version"]
+azure_embeddingapi_version = config_yaml["azure_embeddingapi_version"]
 
 llama2_api_key = config_yaml["llama2_api_key"]
 llama2_api_base = config_yaml["llama2_api_base"]
@@ -26,7 +24,7 @@ llama2_api_base = config_yaml["llama2_api_base"]
 rvctts_api_base = config_yaml["rvctts_api_base"]
 
 cohere_api_key = config_yaml["cohere_api_key"]
-google_palm_api_key = config_yaml["google_palm_api_key"]
+google_api_key = config_yaml["google_api_key"]
 
 bing_api_key = config_yaml["bing_api_key"]
 bing_endpoint = config_yaml["bing_endpoint"] + "/v7.0/search"
