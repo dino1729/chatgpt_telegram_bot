@@ -172,6 +172,7 @@ class ChatGPT:
         self.model = model
 
     async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
+        
         if chat_mode not in config.chat_modes.keys():
             raise ValueError(f"Chat mode {chat_mode} is not supported")
         
@@ -361,6 +362,7 @@ class ChatGPT:
         yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed  # sending final answer
 
     async def send_vision_message(self, message, dialog_messages=[], chat_mode="assistant", image_buffer: BytesIO = None):
+            
             n_dialog_messages_before = len(dialog_messages)
             answer = None
             while answer is None:
@@ -404,6 +406,7 @@ class ChatGPT:
             )
 
     async def send_vision_message_stream(self, message, dialog_messages=[], chat_mode="assistant", image_buffer: BytesIO = None):
+        
         n_dialog_messages_before = len(dialog_messages)
         answer = None
         while answer is None:
@@ -514,6 +517,7 @@ class ChatGPT:
 
     def _encode_image(self, image_buffer: BytesIO) -> bytes:
 
+        image_buffer.seek(0)
         mime_type, _ = guess_type(image_buffer.name)
         if mime_type is None:
             mime_type = 'application/octet-stream' # Default MIME type if none is found
@@ -525,36 +529,64 @@ class ChatGPT:
     def _generate_prompt_messages(self, message, dialog_messages, chat_mode, image_buffer: BytesIO = None):
         
         prompt = config.chat_modes[chat_mode]["prompt_start"]
-        messages = [{"role": "system", "content": prompt}]
+        messages = []
 
         if image_buffer is None:
+            messages.append({"role": "system", "content": prompt})
             # Text-based interaction
             for dialog_message in dialog_messages:
                 messages.append({"role": "user", "content": dialog_message["user"]})
                 messages.append({"role": "assistant", "content": dialog_message["bot"]})
             messages.append({"role": "user", "content": message})
         else:
-            # Image-based interaction
-            for dialog_message in dialog_messages:
-                messages.append({
-                    "role": "user",
-                    "content": {
-                        "type": "text",
-                        "text": dialog_message["user"]
-                    }
-                })
-                messages.append({"role": "assistant", "content": dialog_message["bot"]})
+            # Reset Buffer
+            image_buffer.seek(0)
             messages.append({
-                "role": "user",
+                "role": "system",
                 "content": [
-                    {"type": "text", "text": message},
                     {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": self._encode_image(image_buffer)
-                        }
+                        "type": "text",
+                        "text": prompt
                     }
                 ]
+            })
+            # Iterate over dialog messages and append them
+            for dialog_message in dialog_messages:
+                if "user" in dialog_message:
+                    messages.append({
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": dialog_message["user"]
+                            }
+                        ]
+                    })
+                if "bot" in dialog_message:
+                    messages.append({
+                        "role": "assistant",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": dialog_message["bot"]
+                            }
+                        ]
+                    })
+            # Add the current user message
+            user_message_content = [{
+                "type": "text",
+                "text": message
+            }]
+            encoded_image = self._encode_image(image_buffer)
+            user_message_content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": encoded_image
+                }
+            })
+            messages.append({
+                "role": "user",
+                "content": user_message_content
             })
 
         return messages
