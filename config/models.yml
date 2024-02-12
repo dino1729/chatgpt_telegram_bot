@@ -4,7 +4,7 @@ info:
 
   gpt-4-turbo:
     type: chat_completion
-    name: GPT-4-Turbo
+    name: G4T
     description: GPT-4-Turbo is the <b>smartest</b> and most advanced model in the world. But it is slower and not as cost-efficient as ChatGPT. Best choice for <b>complex</b> intellectual tasks.
 
     price_per_1000_input_tokens: 0.03
@@ -17,7 +17,7 @@ info:
 
   gpt-4:
     type: chat_completion
-    name: GPT-4-Vision
+    name: G4V
     description: GPT-4-Vision is GPT-4 Plus Vision. It's a model that can handle both text and images. It's a bit slower and more expensive than ChatGPT, but it's the best choice for <b>complex</b> tasks that require both text and image processing.
 
     price_per_1000_input_tokens: 0.01
@@ -30,7 +30,7 @@ info:
       
   gpt-35-turbo-16k:
     type: chat_completion
-    name: chatGPT-16K
+    name: G35T
     description: ChatGPT is that well-known model. It's <b>fast</b> and <b>cheap</b>. Ideal for everyday tasks. If there are some tasks it can't handle, try the <b>GPT-4</b>.
 
     price_per_1000_input_tokens: 0.003
@@ -43,7 +43,7 @@ info:
   
   cohere:
     type: completion
-    name: Cohere
+    name: Co
     description: Cohere is a completion model from Cohere.ai trained on 6B, 13B, 52B parameters. With an author of the <b>Attention is All You Need</b> paper as one of its co-founders, Cohere's LLM is built with a focus on enterprise. Products based on its LLM include semantic search, embeddings, text generation, summarization, and classification.
 
     price_per_1000_input_tokens: 0.02
@@ -56,7 +56,7 @@ info:
     
   palm:
     type: chat_completion
-    name: PALM
+    name: Palm
     description: PALM is Google's LLM chat product, based on its Pathways Language Model (PaLM) which succeeded LaMDA. This builds upon Google's research in the transformer architecture, Gopher scaling, Chinchilla compute-optimal scaling, and Sparrow dialogue finetuning.
 
     price_per_1000_input_tokens: 0.02
@@ -69,7 +69,7 @@ info:
 
   gemini:
     type: chat_completion
-    name: Gemini
+    name: Gem
     description: Gemini (Gemini Pro) is Google's LLM chat product, based on Transformers which succeeded PaLM. This is the latest and greatest model from Google.
 
     price_per_1000_input_tokens: 0.02
@@ -82,7 +82,7 @@ info:
 
   mixtral8x7b:
     type: chat_completion
-    name: Mixtral 8x7B
+    name: Mix
     description: Mixtral 8x7B, a high-quality sparse mixture of experts model (SMoE) with open weights. Licensed under Apache 2.0. Mixtral outperforms Llama 2 70B on most benchmarks with 6x faster inference. It is the strongest open-weight model with a permissive license and the best model overall regarding cost/performance trade-offs. In particular, it matches or outperforms GPT3.5 on most standard benchmarks.
 
     price_per_1000_input_tokens: 0.002

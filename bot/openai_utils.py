@@ -12,7 +12,6 @@ import google.generativeai as palm
 import google.generativeai as genai
 import azure.cognitiveservices.speech as speechsdk
 from mimetypes import guess_type
-import openai
 from openai import OpenAI
 from openai import AzureOpenAI as OpenAIAzure
 from newspaper import Article
@@ -91,8 +90,8 @@ client = OpenAIAzure(
 # Check if user set the davinci model flag
 gpt4_flag = True
 if gpt4_flag:
-    LLM_DEPLOYMENT_NAME = "gpt-4"
-    LLM_MODEL_NAME = "gpt-4"
+    LLM_DEPLOYMENT_NAME = "gpt-4-turbo"
+    LLM_MODEL_NAME = "gpt-4-turbo"
     max_input_size = 128000
     context_window = 128000
     print("Using gpt4 model.")
@@ -187,7 +186,7 @@ class ChatGPT:
         answer = None
         while answer is None:
             try:
-                if self.model in {"gpt-4-turbo", "gpt4", "gpt-35-turbo-16k"}:
+                if self.model in {"gpt-4-turbo", "gpt-4", "gpt-35-turbo-16k"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     client = OpenAIAzure(
                         api_key=azure_api_key,
@@ -246,9 +245,13 @@ class ChatGPT:
                     raise ValueError(f"Unknown model: {self.model}")
 
                 answer = self._postprocess_answer(answer)
-            except openai.error.InvalidRequestError as e:  # too many tokens
+            # except openai.error.InvalidRequestError as e:  # too many tokens
+            #     if len(dialog_messages) == 0:
+            #         raise ValueError("Dialog messages is reduced to zero, but still has too many tokens to make completion") from e
+            except Exception as e:
                 if len(dialog_messages) == 0:
                     raise ValueError("Dialog messages is reduced to zero, but still has too many tokens to make completion") from e
+                    raise e
 
                 # forget first message in dialog_messages
                 dialog_messages = dialog_messages[1:]
@@ -345,7 +348,10 @@ class ChatGPT:
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
                     n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                     yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
-            except openai.error.InvalidRequestError as e:  # too many tokens
+            # except openai.error.InvalidRequestError as e:  # too many tokens
+            #     if len(dialog_messages) == 0:
+            #         raise e
+            except Exception as e:
                 if len(dialog_messages) == 0:
                     raise e
 
@@ -377,11 +383,12 @@ class ChatGPT:
 
                     answer = self._postprocess_answer(answer)
                     n_input_tokens, n_output_tokens = (r.usage.prompt_tokens, r.usage.completion_tokens)
-                except openai.error.InvalidRequestError as e:  # too many tokens
+                # except openai.error.InvalidRequestError as e:  # too many tokens
+                #     if len(dialog_messages) == 0:
+                #         raise ValueError("Dialog messages is reduced to zero, but still has too many tokens to make completion") from e
+                except Exception as e:
                     if len(dialog_messages) == 0:
-                        raise ValueError(
-                            "Dialog messages is reduced to zero, but still has too many tokens to make completion"
-                        ) from e
+                        raise ValueError("Dialog messages is reduced to zero, but still has too many tokens to make completion") from e
 
                     # forget first message in dialog_messages
                     dialog_messages = dialog_messages[1:]
@@ -403,6 +410,7 @@ class ChatGPT:
             try:
                 if self.model == "gpt-4":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode, image_buffer)
+                    print("Prompt sent to GPT-4: ", messages)
                     image_client = OpenAIAzure(
                         api_key=azure_api_key,
                         azure_endpoint=azure_api_base,
@@ -426,7 +434,10 @@ class ChatGPT:
 
                 answer = self._postprocess_answer(answer)
 
-            except openai.error.InvalidRequestError as e:  # too many tokens
+            # except openai.error.InvalidRequestError as e:  # too many tokens
+            #     if len(dialog_messages) == 0:
+            #         raise e
+            except Exception as e:
                 if len(dialog_messages) == 0:
                     raise e
 
@@ -512,26 +523,41 @@ class ChatGPT:
         return f"data:{mime_type};base64,{base64_encoded_data}"
 
     def _generate_prompt_messages(self, message, dialog_messages, chat_mode, image_buffer: BytesIO = None):
+        
         prompt = config.chat_modes[chat_mode]["prompt_start"]
-
         messages = [{"role": "system", "content": prompt}]
-        user_messages = {"role": "user", "content": []}
-        for dialog_message in dialog_messages:
-            user_messages["content"].append(
-                {"type": "text", "text": dialog_message["user"]}
-            )
-            messages.append({"role": "assistant", "content": dialog_message["bot"]})
-        user_messages["content"].append({"type": "text", "text": message})
 
-        if image_buffer is not None:
-            user_messages["content"].append(
-                {
-                    "type": "image",
-                    "image": self._encode_image(image_buffer),
-                }
-            )
+        if image_buffer is None:
+            # Text-based interaction
+            for dialog_message in dialog_messages:
+                messages.append({"role": "user", "content": dialog_message["user"]})
+                messages.append({"role": "assistant", "content": dialog_message["bot"]})
+            messages.append({"role": "user", "content": message})
+        else:
+            # Image-based interaction
+            for dialog_message in dialog_messages:
+                messages.append({
+                    "role": "user",
+                    "content": {
+                        "type": "text",
+                        "text": dialog_message["user"]
+                    }
+                })
+                messages.append({"role": "assistant", "content": dialog_message["bot"]})
+            messages.append({
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": message},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": self._encode_image(image_buffer)
+                        }
+                    }
+                ]
+            })
 
-        return messages + ([user_messages] if len(user_messages["content"]) > 0 else [])
+        return messages
 
     def _postprocess_answer(self, answer):
         
