@@ -221,13 +221,13 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
             # send typing action
             await update.message.chat.send_action(action="typing")
 
-            if 'photo' in update.message.effective_attachment and current_model != "gpt-4":
-                await update.message.reply_text("It looks like you've uploaded a picture but you're not using the gpt-4 model. Please change your model in the settings to use this feature.")
+            if update.message.effective_attachment and current_model != "gpt-4":
+                await update.message.reply_text("It looks like you've uploaded a picture but you're not using the gpt-4 model. Please change your settings in /settings")
                 return
 
             if _message is None or len(_message) == 0:
-                 await update.message.reply_text("🥲 You sent <b>empty message</b>. Please, try again!", parse_mode=ParseMode.HTML)
-                 return
+                await update.message.reply_text("😅 You sent <b>empty message</b>. Please, try again!", parse_mode=ParseMode.HTML)
+                return
 
             dialog_messages = db.get_dialog_messages(user_id, dialog_id=None)
             parse_mode = {
@@ -243,11 +243,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                     gen = chatgpt_instance.send_internetmessage(_message, dialog_messages=dialog_messages, chat_mode="internet_connected_assistant")
             else:
                 if chat_mode != "internet_connected_assistant":
-                    answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = await chatgpt_instance.send_message(
-                        _message,
-                        dialog_messages=dialog_messages,
-                        chat_mode=chat_mode
-                    )
+                    answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = await chatgpt_instance.send_message(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
                     async def fake_gen():
                         yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
 
@@ -411,7 +407,8 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
     async with user_semaphores[user_id]:
         task = asyncio.create_task(
             vision_message_handle_fn()
-            if current_model == "gpt-4" and update.message.photo is not None and len(update.message.photo) > 0
+            # if current_model == "gpt-4" and update.message.photo is not None and len(update.message.photo) > 0
+            if current_model == "gpt-4" or (update.message.photo is not None and len(update.message.photo) > 0)
             else message_handle_fn()
         )
         user_tasks[user_id] = task
