@@ -91,7 +91,7 @@ client = OpenAIAzure(
 gpt4_flag = True
 if gpt4_flag:
     LLM_DEPLOYMENT_NAME = "gpt-4-turbo"
-    LLM_MODEL_NAME = "gpt-4-turbo"
+    LLM_MODEL_NAME = "gpt-4-1106-preview"
     max_input_size = 128000
     context_window = 128000
     print("Using gpt4 model.")
@@ -363,57 +363,63 @@ class ChatGPT:
 
     async def send_vision_message(self, message, dialog_messages=[], chat_mode="assistant", image_buffer: BytesIO = None):
             
-            n_dialog_messages_before = len(dialog_messages)
-            answer = None
-            while answer is None:
-                try:
-                    if self.model == "gpt-4":
-                        messages = self._generate_prompt_messages(message, dialog_messages, chat_mode, image_buffer)
-                        image_client = OpenAIAzure(
-                            api_key=azure_api_key,
-                            azure_endpoint=azure_api_base,
-                            api_version=azure_chatapi_version,
-                        )
-                        r = image_client.chat.completions.create(
-                            model=self.model,
-                            messages=messages,
-                            **OPENAI_COMPLETION_OPTIONS
-                        )
-                        answer = r.choices[0].message.content
-                    else:
-                        raise ValueError(f"Unsupported model: {self.model}")
-
-                    answer = self._postprocess_answer(answer)
-                    n_input_tokens, n_output_tokens = (r.usage.prompt_tokens, r.usage.completion_tokens)
-                # except openai.error.InvalidRequestError as e:  # too many tokens
-                #     if len(dialog_messages) == 0:
-                #         raise ValueError("Dialog messages is reduced to zero, but still has too many tokens to make completion") from e
-                except Exception as e:
-                    if len(dialog_messages) == 0:
-                        raise ValueError("Dialog messages is reduced to zero, but still has too many tokens to make completion") from e
-
-                    # forget first message in dialog_messages
-                    dialog_messages = dialog_messages[1:]
-
-            n_first_dialog_messages_removed = n_dialog_messages_before - len(
-                dialog_messages
-            )
-
-            return (
-                answer,
-                (n_input_tokens, n_output_tokens),
-                n_first_dialog_messages_removed,
-            )
-
-    async def send_vision_message_stream(self, message, dialog_messages=[], chat_mode="assistant", image_buffer: BytesIO = None):
+        if chat_mode not in config.chat_modes.keys():
+            raise ValueError(f"Chat mode {chat_mode} is not supported")
         
+        # Convert model names for token counting
+        token_count_model = self.model            
         n_dialog_messages_before = len(dialog_messages)
         answer = None
+        image_buffer.seek(0)
         while answer is None:
             try:
                 if self.model == "gpt-4":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode, image_buffer)
-                    print("Prompt sent to GPT-4: ", messages)
+                    image_client = OpenAIAzure(
+                        api_key=azure_api_key,
+                        azure_endpoint=azure_api_base,
+                        api_version=azure_chatapi_version,
+                    )
+                    r = image_client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        **OPENAI_COMPLETION_OPTIONS
+                    )
+                    answer = r.choices[0].message.content
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
+                else:
+                    raise ValueError(f"Unsupported model: {self.model}. Please use the gpt-4 vision model")
+
+                answer = self._postprocess_answer(answer)
+            # except openai.error.InvalidRequestError as e:  # too many tokens
+            #     if len(dialog_messages) == 0:
+            #         raise ValueError("Dialog messages is reduced to zero, but still has too many tokens to make completion") from e
+            except Exception as e:
+                if len(dialog_messages) == 0:
+                    raise ValueError("Dialog messages is reduced to zero, but still has too many tokens to make completion") from e
+
+                # forget first message in dialog_messages
+                dialog_messages = dialog_messages[1:]
+
+        n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+
+        return (answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed)
+
+    async def send_vision_message_stream(self, message, dialog_messages=[], chat_mode="assistant", image_buffer: BytesIO = None):
+        
+        if chat_mode not in config.chat_modes.keys():
+            raise ValueError(f"Chat mode {chat_mode} is not supported")
+        
+        # Convert model names for token counting
+        token_count_model = self.model
+
+        n_dialog_messages_before = len(dialog_messages)
+        answer = None
+        image_buffer.seek(0)
+        while answer is None:
+            try:
+                if self.model == "gpt-4":
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode, image_buffer)
                     image_client = OpenAIAzure(
                         api_key=azure_api_key,
                         azure_endpoint=azure_api_base,
@@ -431,12 +437,11 @@ class ChatGPT:
                             delta = r_item.choices[0].delta
                             if delta.content:
                                 answer += delta.content
-                                (n_input_tokens, n_output_tokens) = self._count_tokens_from_messages(messages, answer, model=self.model)
+                                (n_input_tokens, n_output_tokens) = self._count_tokens_from_messages(messages, answer, model=token_count_model)
                                 n_first_dialog_messages_removed = (n_dialog_messages_before - len(dialog_messages))
                                 yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
-
-                answer = self._postprocess_answer(answer)
-
+                else:
+                    raise ValueError(f"Unsupported model: {self.model}. Please use the gpt-4 vision model")
             # except openai.error.InvalidRequestError as e:  # too many tokens
             #     if len(dialog_messages) == 0:
             #         raise e
@@ -447,7 +452,7 @@ class ChatGPT:
                 # forget first message in dialog_messages
                 dialog_messages = dialog_messages[1:]
 
-        yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+        yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed # sending final answer
 
     async def send_internetmessage(self, message, dialog_messages=[], chat_mode="internet_connected_assistant"):
 
@@ -600,9 +605,13 @@ class ChatGPT:
         
         encoding = tiktoken.encoding_for_model(model)
 
+        # Define default token values
+        default_n_input_tokens = 0
+        default_n_output_tokens = 0
+
         if model == "gpt-3.5-turbo-16k":
-            tokens_per_message = 4  # every message follows <im_start>{role/name}\n{content}<im_end>\n
-            tokens_per_name = -1  # if there's a name, the role is omitted
+            tokens_per_message = 4
+            tokens_per_name = -1
         elif model == "gpt-3.5-turbo":
             tokens_per_message = 4
             tokens_per_name = -1
@@ -610,21 +619,31 @@ class ChatGPT:
             tokens_per_message = 3
             tokens_per_name = 1
         else:
-            raise ValueError(f"Unknown model: {model}")
+            # If the model is unknown, return default token values
+            return default_n_input_tokens, default_n_output_tokens
 
         # input
         n_input_tokens = 0
-        for message in messages:
-            n_input_tokens += tokens_per_message
-            for key, value in message.items():
-                n_input_tokens += len(encoding.encode(value))
-                if key == "name":
-                    n_input_tokens += tokens_per_name
+        try:
+            for message in messages:
+                n_input_tokens += tokens_per_message
+                for key, value in message.items():
+                    # Ensure that the value is a string or convert it if possible
+                    if isinstance(value, list):
+                        value = "\n".join(str(item) for item in value) if all(isinstance(item, str) for item in value) else ""
+                    elif not isinstance(value, str):
+                        value = str(value) if value is not None else ""
+                    n_input_tokens += len(encoding.encode(value))
+                    if key == "name":
+                        n_input_tokens += tokens_per_name
+            n_input_tokens += 2
+            # output
+            n_output_tokens = 1 + len(encoding.encode(str(answer)))  # Ensure answer is a string
 
-        n_input_tokens += 2
-
-        # output
-        n_output_tokens = 1 + len(encoding.encode(answer))
+        except Exception as e:
+            # If there's an error during token counting, log the error and return default values
+            logging.exception(f"An error occurred during token counting: {e}")
+            return default_n_input_tokens, default_n_output_tokens
 
         return n_input_tokens, n_output_tokens
 
