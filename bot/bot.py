@@ -204,9 +204,6 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
     async def message_handle_fn():
         
-        if 'photo' in update.message.effective_attachment and current_model != "gpt-4":
-            await update.message.reply_text("It looks like you've uploaded a picture but you're not using the gpt-4 model. Please change your model in the settings to use this feature.")
-            return
         # new dialog timeout
         if use_new_dialog_timeout:
             if (datetime.now() - db.get_user_attribute(user_id, "last_interaction")).seconds > config.new_dialog_timeout and len(db.get_dialog_messages(user_id)) > 0:
@@ -223,6 +220,10 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
             # send typing action
             await update.message.chat.send_action(action="typing")
+
+            if 'photo' in update.message.effective_attachment and current_model != "gpt-4":
+                await update.message.reply_text("It looks like you've uploaded a picture but you're not using the gpt-4 model. Please change your model in the settings to use this feature.")
+                return
 
             if _message is None or len(_message) == 0:
                  await update.message.reply_text("🥲 You sent <b>empty message</b>. Please, try again!", parse_mode=ParseMode.HTML)
