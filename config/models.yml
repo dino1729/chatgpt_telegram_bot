@@ -1,4 +1,4 @@
-available_text_models: ["gpt-4-turbo", "gpt-4", "gpt-35-turbo-16k", "cohere", "palm", "gemini", "mixtral8x7b"]
+available_text_models: ["gpt-4-turbo", "gpt-4", "gpt-35-turbo-16k", "cohere", "llama2-70b-4096", "mixtral-8x7b-32768", "gemini-1.0-pro", "mixtral8x7b"]
 
 info:
 
@@ -25,7 +25,7 @@ info:
 
     scores:
       smart: 5
-      fast: 4
+      fast: 2
       cheap: 3
       
   gpt-35-turbo-16k:
@@ -38,7 +38,7 @@ info:
 
     scores:
       Smart: 3
-      Fast: 5
+      Fast: 4
       Cheap: 5
   
   cohere:
@@ -53,21 +53,34 @@ info:
       Smart: 3
       Fast: 2
       Cheap: 3
-    
-  palm:
-    type: chat_completion
-    name: Palm
-    description: PALM is Google's LLM chat product, based on its Pathways Language Model (PaLM) which succeeded LaMDA. This builds upon Google's research in the transformer architecture, Gopher scaling, Chinchilla compute-optimal scaling, and Sparrow dialogue finetuning.
 
-    price_per_1000_input_tokens: 0.02
-    price_per_1000_output_tokens: 0.02
+  llama2-70b-4096:
+    type: chat_completion
+    name: GQL
+    description: Groq's LLAMA-70B instantiation. Groq is on a mission to set the standard for GenAI inference speed, helping real-time AI applications come to life today. The LPU is designed to overcome the two LLM bottlenecks- compute density and memory bandwidth. An LPU has greater compute capacity than a GPU and CPU in regards to LLMs. This reduces the amount of time per word calculated, allowing sequences of text to be generated much faster.
+
+    price_per_1000_input_tokens: 0.002
+    price_per_1000_output_tokens: 0.002
 
     scores:
       Smart: 3
-      Fast: 2
-      Cheap: 3
+      Fast: 5
+      Cheap: 2
 
-  gemini:
+  mixtral-8x7b-32768:
+    type: chat_completion
+    name: GQM
+    description: Groq's Mixtral-7B instantiation. Groq is on a mission to set the standard for GenAI inference speed, helping real-time AI applications come to life today. The LPU is designed to overcome the two LLM bottlenecks- compute density and memory bandwidth. An LPU has greater compute capacity than a GPU and CPU in regards to LLMs. This reduces the amount of time per word calculated, allowing sequences of text to be generated much faster.
+
+    price_per_1000_input_tokens: 0.002
+    price_per_1000_output_tokens: 0.002
+
+    scores:
+      Smart: 2
+      Fast: 5
+      Cheap: 2
+
+  gemini-1.0-pro:
     type: chat_completion
     name: Gem
     description: Gemini (Gemini Pro) is Google's LLM chat product, based on Transformers which succeeded PaLM. This is the latest and greatest model from Google.

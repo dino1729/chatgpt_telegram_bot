@@ -1,8 +1,7 @@
 python-telegram-bot[rate-limiter]==20.1
-openai
 tiktoken>=0.3.0
 # Note that PyYAML==6.0 breaks with Python3.12
-PyYAML==6.0
+PyYAML==6.0.1
 pymongo==4.3.3
 python-dotenv==0.21.0
 pydub==0.25.1
@@ -10,12 +9,21 @@ azure.cognitiveservices.speech
 uuid
 requests
 chardet
-llama-hub==0.0.78
+llama-hub==0.0.79.post1
+llama-index-llms-azure-openai
+llama-index-embeddings-azure-openai
+llama-index-agent-openai
+llama-index-tools-bing-search
+llama-index-tools-weather
+llama-index-tools-google
+llama-index-llms-azure-openai
+llama-index-tools-wikipedia
 pyowm
-llama-index==0.9.46
+llama-index==0.10.13.post1
 langchain>=0.0.329
 newspaper3k
 beautifulsoup4
 cohere
 google.generativeai
+groq
 

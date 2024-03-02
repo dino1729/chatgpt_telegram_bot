@@ -10,112 +10,92 @@ import sys
 import json
 import google.generativeai as palm
 import google.generativeai as genai
+from groq import Groq
 import azure.cognitiveservices.speech as speechsdk
 from mimetypes import guess_type
 from openai import OpenAI
-from openai import AzureOpenAI as OpenAIAzure
 from newspaper import Article
 from bs4 import BeautifulSoup
-from llama_index.embeddings import AzureOpenAIEmbedding
-from llama_index.llms import AzureOpenAI
-from llama_index import (
-    VectorStoreIndex,
-    SummaryIndex,
-    PromptHelper,
-    SimpleDirectoryReader,
-    ServiceContext,
-    get_response_synthesizer,
-    set_global_service_context,
-)
-from llama_index.retrievers import VectorIndexRetriever
-from llama_index.query_engine import RetrieverQueryEngine
-from llama_index.indices.postprocessor import SimilarityPostprocessor
-from llama_index.node_parser import SemanticSplitterNodeParser
-from llama_index.prompts import PromptTemplate
-from llama_index.agent import OpenAIAgent
-from llama_hub.tools.weather.base import OpenWeatherMapToolSpec
-from llama_hub.tools.bing_search.base import BingSearchToolSpec
+from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
+from llama_index.llms.azure_openai import AzureOpenAI
+from openai import AzureOpenAI as OpenAIAzure
+from llama_index.core import VectorStoreIndex, PromptHelper, SimpleDirectoryReader, ServiceContext, get_response_synthesizer, set_global_service_context
+from llama_index.core.indices import SummaryIndex
+from llama_index.core.retrievers import VectorIndexRetriever
+from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.core.node_parser import SemanticSplitterNodeParser
+from llama_index.core import PromptTemplate
+from llama_index.agent.openai import OpenAIAgent
+from llama_index.tools.weather import OpenWeatherMapToolSpec
+from llama_index.tools.bing_search import BingSearchToolSpec
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(stream=sys.stdout, level=logging.CRITICAL)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
-#UPLOAD_FOLDER = './data'  # set the upload folder path
-UPLOAD_FOLDER = os.path.join(".", "data")
-SUMMARY_FOLDER = os.path.join(UPLOAD_FOLDER, "summary_index")
-VECTOR_FOLDER = os.path.join(UPLOAD_FOLDER, "vector_index")
-
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-if not os.path.exists(SUMMARY_FOLDER ):
-    os.makedirs(SUMMARY_FOLDER)
-if not os.path.exists(VECTOR_FOLDER ):
-    os.makedirs(VECTOR_FOLDER)
-
+azure_api_key = config.azure_api_key
+azure_api_base = config.azure_api_base
+azure_embeddingapi_version = config.azure_embeddingapi_version
+azure_chatapi_version = config.azure_chatapi_version
+azure_gpt4_deploymentid = config.azure_gpt4_deploymentid
+openai_gpt4_modelname = config.openai_gpt4_modelname
+azure_gpt35_deploymentid = config.azure_gpt35_deploymentid
+openai_gpt35_modelname = config.openai_gpt35_modelname
+azure_embedding_deploymentid = config.azure_embedding_deploymentid
+openai_embedding_modelname = config.openai_embedding_modelname
 
 cohere_api_key = config.cohere_api_key
 google_api_key = config.google_api_key
-
-azure_api_type = "azure"
-azure_api_base = config.azure_api_base
-azure_api_key = config.azure_api_key
-azure_chatapi_version = config.azure_chatapi_version
-azure_embeddingapi_version = config.azure_embeddingapi_version
+gemini_model_name = config.gemini_model_name
+groq_api_key = config.groq_api_key
 
 bing_api_key = config.bing_api_key
 bing_endpoint = config.bing_endpoint
 bing_news_endpoint = config.bing_news_endpoint
-
-llama2_api_type = "open_ai"
-llama2_api_key = config.llama2_api_key
-llama2_api_base = config.llama2_api_base
-
-rvctts_api_base = config.rvctts_api_base
+openweather_api_key = config.openweather_api_key
 
 azurespeechkey = config.azurespeechkey
 azurespeechregion = config.azurespeechregion
 azuretexttranslatorkey = config.azuretexttranslatorkey
 
-openweather_api_key = config.openweather_api_key
+rvctts_api_base = config.rvctts_api_base
 
-num_output = 1024
-max_chunk_overlap_ratio = 0.1
-chunk_size = 256
-EMBEDDINGS_DEPLOYMENT_NAME = "text-embedding-ada-002"
-# Check if user set the davinci model flag
+llama2_api_key = config.llama2_api_key
+llama2_api_base = config.llama2_api_base
+
+sum_template = config.sum_template
+eg_template = config.eg_template
+ques_template = config.ques_template
+
+temperature = config.temperature
+max_tokens = config.max_tokens
+model_name = config.model_name
+num_output = config.num_output
+max_chunk_overlap_ratio = config.max_chunk_overlap_ratio
+max_input_size = config.max_input_size
+context_window = config.context_window
+keywords = config.keywords
+
+# Set a flag for lite mode: Choose lite mode if you dont want to analyze videos without transcripts
+lite_mode = False
+
 client = OpenAIAzure(
     api_key=azure_api_key,
     azure_endpoint=azure_api_base,
     api_version=azure_chatapi_version,
 )
-# Check if user set the davinci model flag
-gpt4_flag = True
-if gpt4_flag:
-    LLM_DEPLOYMENT_NAME = "gpt-4-turbo"
-    LLM_MODEL_NAME = "gpt-4-1106-preview"
-    max_input_size = 128000
-    context_window = 128000
-    print("Using gpt4 model.")
-else:
-    LLM_DEPLOYMENT_NAME = "gpt-35-turbo-16k"
-    LLM_MODEL_NAME = "gpt-35-turbo-16k"
-    max_input_size = 48000
-    context_window = 16000
-    print("Using gpt-35-turbo-16k model.")
-
-prompt_helper = PromptHelper(max_input_size, num_output, max_chunk_overlap_ratio)
 
 llm = AzureOpenAI(
-    engine=LLM_DEPLOYMENT_NAME, 
-    model=LLM_MODEL_NAME,
+    deployment_name=azure_gpt4_deploymentid, 
+    model=openai_gpt4_modelname,
     api_key=azure_api_key,
     azure_endpoint=azure_api_base,
     api_version=azure_chatapi_version,
-    temperature=0.25,
+    temperature=temperature,
     max_tokens=num_output,
 )
 embedding_llm =AzureOpenAIEmbedding(
-    model=EMBEDDINGS_DEPLOYMENT_NAME,
-    azure_deployment=EMBEDDINGS_DEPLOYMENT_NAME,
+    deployment_name=azure_embedding_deploymentid,
+    model=openai_embedding_modelname,
     api_key=azure_api_key,
     azure_endpoint=azure_api_base,
     api_version=azure_embeddingapi_version,
@@ -124,43 +104,31 @@ embedding_llm =AzureOpenAIEmbedding(
 )
 
 splitter = SemanticSplitterNodeParser(buffer_size=1, breakpoint_percentile_threshold=95, embed_model=embedding_llm)
+prompt_helper = PromptHelper(max_input_size, num_output, max_chunk_overlap_ratio)
 
 service_context = ServiceContext.from_defaults(
     llm=llm,
     embed_model=embedding_llm,
     prompt_helper=prompt_helper,
-    chunk_size=chunk_size,
     context_window=context_window,
     node_parser=splitter,
 )
 set_global_service_context(service_context)
 
-sum_template = (
-    "You are a world-class text summarizer connected to the internet. We have provided context information from the internet below. \n"
-    "---------------------\n"
-    "{context_str}"
-    "\n---------------------\n"
-    "Based on the context provided, your task is to summarize the input context while effectively conveying the main points and relevant information. The summary should be presented in a numbered list of at least 10 key points and takeaways. It is important to refrain from directly copying word-for-word from the original context. Additionally, please ensure that the summary excludes any extraneous details such as discounts, promotions, sponsorships, or advertisements, and remains focused on the core message of the content.\n"
-    "---------------------\n"
-    "Using both the latest context information and also using your own knowledge, "
-    "answer the question: {query_str}\n"
-)
+example_qs = []
+summary = "No Summary available yet"
+example_queries = config.example_queries
 summary_template = PromptTemplate(sum_template)
-ques_template = (
-    "You are a world-class personal assistant connected to the internet. You will be provided snippets of information from the internet based on user's query. Here is the context:\n"
-    "---------------------\n"
-    "{context_str}\n"
-    "\n---------------------\n"
-    "Based on the context provided, your task is to answer the user's question to the best of your ability. It is important to refrain from directly copying word-for-word from the original context. Additionally, please ensure that the summary excludes any extraneous details such as discounts, promotions, sponsorships, or advertisements, and remains focused on the core message of the content.\n"
-    "---------------------\n"
-    "Using both the latest context information and also using your own knowledge, "
-    "answer the question: {query_str}\n"
-)
+example_template = PromptTemplate(eg_template)
 qa_template = PromptTemplate(ques_template)
 
+UPLOAD_FOLDER = config.UPLOAD_FOLDER
+SUMMARY_FOLDER = config.SUMMARY_FOLDER
+VECTOR_FOLDER = config.VECTOR_FOLDER
+
 OPENAI_COMPLETION_OPTIONS = {
-    "temperature": 0.5,
-    "max_tokens": 1024,
+    "temperature": temperature,
+    "max_tokens": max_tokens,
     "top_p": 0.9,
     "frequency_penalty": 0.6,
     "presence_penalty": 0.1
@@ -168,7 +136,7 @@ OPENAI_COMPLETION_OPTIONS = {
 
 class ChatGPT:
     def __init__(self, model="gpt-4-turbo"):
-        assert model in {"gpt-4-turbo", "gpt-4", "gpt-35-turbo-16k", "cohere", "palm", "gemini", "mixtral8x7b"}, f"Unknown model: {model}"
+        assert model in {"gpt-4-turbo", "gpt-4", "gpt-35-turbo-16k", "cohere", "llama2-70b-4096", "mixtral-8x7b-32768", "gemini-1.0-pro", "mixtral8x7b"}, f"Unknown model: {model}"
         self.model = model
 
     async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
@@ -235,12 +203,42 @@ class ChatGPT:
                     )
                     answer = r.last
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
-                elif self.model == "gemini":
+                elif self.model == "gemini-1.0-pro":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     genai.configure(api_key=google_api_key)
-                    gemini = genai.GenerativeModel('gemini-pro')
+                    generation_config = {
+                        "temperature": temperature,
+                        "max_output_tokens": max_tokens,
+                        "top_p": 0.9,
+                        "top_k": 1,
+                    }
+                    gemini = genai.GenerativeModel(model_name= self.model, generation_config=generation_config)
                     r = await gemini.generate_content_async(str(messages).replace("'", '"'))
                     answer = r.text
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
+                elif self.model == "llama2-70b-4096":
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    groq_client = Groq(
+                        api_key=groq_api_key,
+                    )
+                    r = groq_client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        **OPENAI_COMPLETION_OPTIONS
+                    )
+                    answer = r.choices[0].message["content"]
+                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
+                elif self.model == "mixtral-8x7b-32768":
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    groq_client = Groq(
+                        api_key=groq_api_key,
+                    )
+                    r = groq_client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        **OPENAI_COMPLETION_OPTIONS
+                    )
+                    answer = r.choices[0].message["content"]
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
                 else:
                     raise ValueError(f"Unknown model: {self.model}")
@@ -340,15 +338,61 @@ class ChatGPT:
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
                     n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                     yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
-                elif self.model == "gemini":
+                elif self.model == "gemini-1.0-pro":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     genai.configure(api_key=google_api_key)
-                    gemini = genai.GenerativeModel('gemini-pro')
+                    generation_config = {
+                        "temperature": temperature,
+                        "max_output_tokens": max_tokens,
+                        "top_p": 0.9,
+                        "top_k": 1,
+                    }
+                    gemini = genai.GenerativeModel(model_name= self.model, generation_config=generation_config)
                     r_gen = await gemini.generate_content_async(str(messages).replace("'", '"'))
                     answer = r_gen.text
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
                     n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                     yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+                elif self.model == "llama2-70b-4096":
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    groq_client = Groq(
+                        api_key=groq_api_key,
+                    )
+                    r_gen = groq_client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        stream=True,
+                        **OPENAI_COMPLETION_OPTIONS
+                    )
+                    answer = ""
+                    for r_item in r_gen:
+                        if r_item.choices:
+                            delta = r_item.choices[0].delta
+                            if delta.content:
+                                answer += delta.content
+                                n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
+                                n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+                                yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+                elif self.model == "mixtral-8x7b-32768":
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    groq_client = Groq(
+                        api_key=groq_api_key,
+                    )
+                    r_gen = groq_client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        stream=True,
+                        **OPENAI_COMPLETION_OPTIONS
+                    )
+                    answer = ""
+                    for r_item in r_gen:
+                        if r_item.choices:
+                            delta = r_item.choices[0].delta
+                            if delta.content:
+                                answer += delta.content
+                                n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
+                                n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+                                yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
             # except openai.error.InvalidRequestError as e:  # too many tokens
             #     if len(dialog_messages) == 0:
             #         raise e
@@ -827,9 +871,6 @@ class ChatGPT:
         query_engine = RetrieverQueryEngine(
             retriever=retriever,
             response_synthesizer=response_synthesizer,
-            node_postprocessors=[
-                SimilarityPostprocessor(similarity_cutoff=0.5)
-            ],
         )
         response = query_engine.query(query)
 
