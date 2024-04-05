@@ -44,7 +44,7 @@ info:
   cohere:
     type: completion
     name: Co
-    description: Cohere is a completion model from Cohere.ai trained on 6B, 13B, 52B parameters. With an author of the <b>Attention is All You Need</b> paper as one of its co-founders, Cohere's LLM is built with a focus on enterprise. Products based on its LLM include semantic search, embeddings, text generation, summarization, and classification.
+    description: Cohere is a chat completions model from Cohere.ai called Command R Plus. With an author of the <b>Attention is All You Need</b> paper as one of its co-founders, Cohere's LLM is built with a focus on enterprise. Products based on its LLM include semantic search, embeddings, text generation, summarization, and classification.
 
     price_per_1000_input_tokens: 0.02
     price_per_1000_output_tokens: 0.02

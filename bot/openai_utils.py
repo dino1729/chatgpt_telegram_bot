@@ -185,13 +185,13 @@ class ChatGPT:
                 elif self.model == "cohere":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     co = cohere.Client(cohere_api_key)
-                    r = co.generate(
-                        model='command-nightly',
-                        prompt=str(messages).replace("'", '"'),
+                    r = co.chat(
+                        model='command-r-plus',
+                        message=str(messages).replace("'", '"'),
                         temperature=0.5,
                         max_tokens=1024,
                     )
-                    answer = r.generations[0].text
+                    answer = r.text
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
                 elif self.model == "palm":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
@@ -316,13 +316,13 @@ class ChatGPT:
                 elif self.model == "cohere":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     co = cohere.Client(cohere_api_key)
-                    r_gen = co.generate(
-                        model='command-nightly',
-                        prompt=str(messages).replace("'", '"'),
+                    r_gen = co.chat(
+                        model='command-r-plus',
+                        message=str(messages).replace("'", '"'),
                         temperature=0.5,
                         max_tokens=1024,
                     )
-                    answer = r_gen.generations[0].text
+                    answer = r_gen.text
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
                     n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                     yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
