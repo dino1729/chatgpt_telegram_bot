@@ -126,6 +126,10 @@ UPLOAD_FOLDER = config.UPLOAD_FOLDER
 SUMMARY_FOLDER = config.SUMMARY_FOLDER
 VECTOR_FOLDER = config.VECTOR_FOLDER
 
+# Ensure folders exist
+for folder in [config.UPLOAD_FOLDER, config.SUMMARY_FOLDER, config.VECTOR_FOLDER]:
+    os.makedirs(folder, exist_ok=True)
+
 OPENAI_COMPLETION_OPTIONS = {
     "temperature": temperature,
     "max_tokens": max_tokens,
