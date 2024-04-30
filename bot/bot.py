@@ -317,14 +317,18 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                 await update.message.reply_text(f"Starting new dialog due to timeout (<b>{config.chat_modes[chat_mode]['name']}</b> mode) ✅", parse_mode=ParseMode.HTML)
         db.set_user_attribute(user_id, "last_interaction", datetime.now())
 
-        photo = update.message.effective_attachment[-1]
-        photo_file = await context.bot.get_file(photo.file_id)
+        if update.message.effective_attachment is not None and len(update.message.effective_attachment) > 0:
+            photo = update.message.effective_attachment[-1]
+            photo_file = await context.bot.get_file(photo.file_id)
 
-        # store file in memory, not on disk
-        buf = io.BytesIO()
-        await photo_file.download_to_memory(buf)
-        buf.name = "image.jpg"  # file extension is required
-        buf.seek(0)  # move cursor to the beginning of the buffer
+            # store file in memory, not on disk
+            buf = io.BytesIO()
+            await photo_file.download_to_memory(buf)
+            buf.name = "image.jpg"  # file extension is required
+            buf.seek(0)  # move cursor to the beginning of the buffer
+        else:
+            await update.message.reply_text("🥲 You didn't send any image. Please, try again! (Multi-turn image chat not supported yet)")
+            return
 
         # in case of CancelledError
         n_input_tokens, n_output_tokens = 0, 0

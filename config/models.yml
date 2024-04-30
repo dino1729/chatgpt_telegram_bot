@@ -1,4 +1,4 @@
-available_text_models: ["gpt-4-turbo", "gpt-4", "gpt-35-turbo-16k", "cohere", "llama2-70b-4096", "mixtral-8x7b-32768", "gemini-1.0-pro", "mixtral8x7b"]
+available_text_models: ["gpt-4-turbo", "gpt-4", "gpt-35-turbo-16k", "cohere", "llama3-70b-8192", "mixtral-8x7b-32768", "gemini-1.0-pro", "mixtral8x7b"]
 
 info:
 
@@ -54,7 +54,7 @@ info:
       Fast: 2
       Cheap: 3
 
-  llama2-70b-4096:
+  llama3-70b-8192:
     type: chat_completion
     name: GQL
     description: Groq's LLAMA-70B instantiation. Groq is on a mission to set the standard for GenAI inference speed, helping real-time AI applications come to life today. The LPU is designed to overcome the two LLM bottlenecks- compute density and memory bandwidth. An LPU has greater compute capacity than a GPU and CPU in regards to LLMs. This reduces the amount of time per word calculated, allowing sequences of text to be generated much faster.
