@@ -126,7 +126,7 @@ OPENAI_COMPLETION_OPTIONS = {
 
 class ChatGPT:
     def __init__(self, model="gpt-4-turbo"):
-        assert model in {"gpt-4-turbo", "gpt-4", "gpt-35-turbo-16k", "cohere", "llama3-70b-8192", "mixtral-8x7b-32768", "gemini-1.0-pro", "mixtral8x7b"}, f"Unknown model: {model}"
+        assert model in {"gpt-4-turbo", "gpt-4", "gpt-35-turbo-16k", "cohere", "llama3-70b-8192", "mixtral-8x7b-32768", "gemini-1.5-pro-latest", "mixtral8x7b"}, f"Unknown model: {model}"
         self.model = model
 
     async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
@@ -193,7 +193,7 @@ class ChatGPT:
                     )
                     answer = r.last
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
-                elif self.model == "gemini-1.0-pro":
+                elif self.model == "gemini-1.5-pro-latest":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     genai.configure(api_key=google_api_key)
                     generation_config = {
@@ -328,7 +328,7 @@ class ChatGPT:
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
                     n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                     yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
-                elif self.model == "gemini-1.0-pro":
+                elif self.model == "gemini-1.5-pro-latest":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     genai.configure(api_key=google_api_key)
                     generation_config = {

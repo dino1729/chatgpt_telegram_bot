@@ -1,4 +1,4 @@
-available_text_models: ["gpt-4-turbo", "gpt-4", "gpt-35-turbo-16k", "cohere", "llama3-70b-8192", "mixtral-8x7b-32768", "gemini-1.0-pro", "mixtral8x7b"]
+available_text_models: ["gpt-4-turbo", "gpt-4", "gpt-35-turbo-16k", "cohere", "llama3-70b-8192", "mixtral-8x7b-32768", "gemini-1.5-pro-latest", "mixtral8x7b"]
 
 info:
 
@@ -80,7 +80,7 @@ info:
       Fast: 5
       Cheap: 2
 
-  gemini-1.0-pro:
+  gemini-1.5-pro-latest:
     type: chat_completion
     name: Gem
     description: Gemini (Gemini Pro) is Google's LLM chat product, based on Transformers which succeeded PaLM. This is the latest and greatest model from Google.
