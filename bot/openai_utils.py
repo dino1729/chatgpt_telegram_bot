@@ -8,6 +8,7 @@ import os
 import logging
 import sys
 import json
+from datetime import datetime
 import google.generativeai as palm
 import google.generativeai as genai
 from groq import Groq
@@ -30,7 +31,8 @@ from llama_index.tools.weather import OpenWeatherMapToolSpec
 from llama_index.tools.bing_search import BingSearchToolSpec
 from llama_index.core import Settings
 
-logging.basicConfig(stream=sys.stdout, level=logging.CRITICAL)
+#logging.basicConfig(stream=sys.stdout, level=logging.CRITICAL)
+logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 azure_api_key = config.azure_api_key
@@ -89,6 +91,8 @@ Settings.llm = AzureOpenAI(
     api_key=azure_api_key,
     azure_endpoint=azure_api_base,
     api_version=azure_chatapi_version,
+    temperature=temperature,
+    max_tokens=max_tokens,
 )
 Settings.embed_model = AzureOpenAIEmbedding(
     azure_deployment=azure_embedding_deploymentid,
@@ -501,7 +505,7 @@ class ChatGPT:
         elif token_count_model == "gpt-35-turbo-16k":
             token_count_model = "gpt-3.5-turbo-16k"
 
-        client = OpenAIAzure(
+        Settings.client = OpenAIAzure(
             api_key=azure_api_key,
             azure_endpoint=azure_api_base,
             api_version=azure_chatapi_version,
@@ -747,7 +751,7 @@ class ChatGPT:
         combined_snippets = '\n'.join(all_snippets)
         
         # Format the results as a string
-        output = f"Here is the context from Bing for the query: '{query}':\n"
+        output = f"Here is the context from Bing for the query: '{query}'. Current date and time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}:\n"
         output += combined_snippets
 
         # Save the output to a file
@@ -780,7 +784,7 @@ class ChatGPT:
                 combined_output += f"\n{title}\n{snippet}\n"
 
         # Format the results as a string
-        output = f"Here's scraped text from top {num} articles for: '{query}':\n"
+        output = f"Here's the scraped text from top {num} articles for the query: '{query}'. Current date and time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}:\n"
         output += combined_output
 
         # Save the output to a file
