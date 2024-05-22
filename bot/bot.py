@@ -34,6 +34,7 @@ import database
 import openai_utils
 import io
 
+import base64
 
 # setup
 db = database.Database()
@@ -317,6 +318,8 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                 await update.message.reply_text(f"Starting new dialog due to timeout (<b>{config.chat_modes[chat_mode]['name']}</b> mode) ✅", parse_mode=ParseMode.HTML)
         db.set_user_attribute(user_id, "last_interaction", datetime.now())
 
+        buf = None
+
         if update.message.effective_attachment is not None and len(update.message.effective_attachment) > 0:
             photo = update.message.effective_attachment[-1]
             photo_file = await context.bot.get_file(photo.file_id)
@@ -326,9 +329,6 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
             await photo_file.download_to_memory(buf)
             buf.name = "image.jpg"  # file extension is required
             buf.seek(0)  # move cursor to the beginning of the buffer
-        else:
-            await update.message.reply_text("🥲 You didn't send any image. Please, try again! (Multi-turn image chat not supported yet)")
-            return
 
         # in case of CancelledError
         n_input_tokens, n_output_tokens = 0, 0
@@ -336,7 +336,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
         try:
             # send placeholder message to user
             placeholder_message = await update.message.reply_text("...")
-            _message = message or update.message.caption
+            _message = message or update.message.caption or update.message.text
 
             # send typing action
             await update.message.chat.send_action(action="typing")
@@ -354,7 +354,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
             if config.enable_message_streaming:
                 gen = chatgpt_instance.send_vision_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode, image_buffer=buf)
             else:
-                (answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed) = await chatgpt_instance.send_vision_message(_message, dialog_messages=dialog_messages,image_buffer=buf, chat_mode=chat_mode)
+                (answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed) = await chatgpt_instance.send_vision_message(_message, dialog_messages=dialog_messages, image_buffer=buf, chat_mode=chat_mode)
 
                 async def fake_gen():
                     yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
@@ -385,8 +385,8 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
             # update user data
             new_dialog_message = {"user": message, "bot": answer, "date": datetime.now()}
+            
             db.set_dialog_messages(user_id, db.get_dialog_messages(user_id, dialog_id=None) + [new_dialog_message], dialog_id=None)
-
             db.update_n_used_tokens(user_id, current_model, n_input_tokens, n_output_tokens)
 
         except asyncio.CancelledError:

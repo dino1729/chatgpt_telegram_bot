@@ -31,7 +31,8 @@ from llama_index.tools.weather import OpenWeatherMapToolSpec
 from llama_index.tools.bing_search import BingSearchToolSpec
 from llama_index.core import Settings
 
-#logging.basicConfig(stream=sys.stdout, level=logging.CRITICAL)
+# logging.basicConfig(stream=sys.stdout, level=logging.CRITICAL)
+# logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
@@ -131,7 +132,7 @@ OPENAI_COMPLETION_OPTIONS = {
 
 class ChatGPT:
     def __init__(self, model="gpt-4-turbo"):
-        assert model in {"gpt-4-turbo", "gpt-4", "gpt-35-turbo-16k", "cohere", "llama3-70b-8192", "mixtral-8x7b-32768", "gemini-1.5-pro-latest", "mixtral8x7b"}, f"Unknown model: {model}"
+        assert model in {"gpt-4-turbo", "gpt-4", "gpt-3p5-turbo-16k", "cohere", "llama3-70b-8192", "mixtral-8x7b-32768", "gemini-1.5-pro-latest", "mixtral8x7b"}, f"Unknown model: {model}"
         self.model = model
 
     async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
@@ -143,14 +144,14 @@ class ChatGPT:
         token_count_model = self.model
         if token_count_model == "gpt-4-turbo":
             token_count_model = "gpt-4"
-        elif token_count_model == "gpt-35-turbo-16k":
+        elif token_count_model == "gpt-3p5-turbo-16k":
             token_count_model = "gpt-3.5-turbo-16k"
 
         n_dialog_messages_before = len(dialog_messages)
         answer = None
         while answer is None:
             try:
-                if self.model in {"gpt-4-turbo", "gpt-4", "gpt-35-turbo-16k"}:
+                if self.model in {"gpt-4-turbo", "gpt-3p5-turbo-16k"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     client = OpenAIAzure(
                         api_key=azure_api_key,
@@ -263,7 +264,7 @@ class ChatGPT:
         token_count_model = self.model
         if token_count_model == "gpt-4-turbo":
             token_count_model = "gpt-4"
-        elif token_count_model == "gpt-35-turbo-16k":
+        elif token_count_model == "gpt-3p5-turbo-16k":
             token_count_model = "gpt-3.5-turbo-16k"
 
         n_dialog_messages_before = len(dialog_messages)
@@ -271,7 +272,7 @@ class ChatGPT:
         while answer is None:
             try:
                 # Chat models
-                if self.model in {"gpt-4-turbo", "gpt-4", "gpt-35-turbo-16k"}:
+                if self.model in {"gpt-4-turbo", "gpt-3p5-turbo-16k"}:
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     client = OpenAIAzure(
                         api_key=azure_api_key,
@@ -406,20 +407,21 @@ class ChatGPT:
             raise ValueError(f"Chat mode {chat_mode} is not supported")
         
         # Convert model names for token counting
-        token_count_model = self.model            
+        token_count_model = self.model
         n_dialog_messages_before = len(dialog_messages)
         answer = None
-        image_buffer.seek(0)
+        if image_buffer is not None:
+            image_buffer.seek(0)
         while answer is None:
             try:
                 if self.model == "gpt-4":
-                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode, image_buffer)
-                    image_client = OpenAIAzure(
+                    messages = self._generate_vision_prompt_messages(message, dialog_messages, chat_mode, image_buffer)
+                    vision_client = OpenAIAzure(
                         api_key=azure_api_key,
                         azure_endpoint=azure_api_base,
                         api_version=azure_chatapi_version,
                     )
-                    r = image_client.chat.completions.create(
+                    r = vision_client.chat.completions.create(
                         model=self.model,
                         messages=messages,
                         **OPENAI_COMPLETION_OPTIONS
@@ -453,18 +455,21 @@ class ChatGPT:
         token_count_model = self.model
 
         n_dialog_messages_before = len(dialog_messages)
+        # logging.debug(f"Initial number of dialog messages: {n_dialog_messages_before}")
         answer = None
-        image_buffer.seek(0)
+        if image_buffer is not None:
+            image_buffer.seek(0)
         while answer is None:
             try:
                 if self.model == "gpt-4":
-                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode, image_buffer)
-                    image_client = OpenAIAzure(
+                    messages = self._generate_vision_prompt_messages(message, dialog_messages, chat_mode, image_buffer)
+                    # logging.debug(f"Message content: {messages}")
+                    vision_client = OpenAIAzure(
                         api_key=azure_api_key,
                         azure_endpoint=azure_api_base,
                         api_version=azure_chatapi_version,
                     )
-                    r_gen = image_client.chat.completions.create(
+                    r_gen = vision_client.chat.completions.create(
                         model=self.model,
                         messages=messages,
                         stream=True,
@@ -478,19 +483,20 @@ class ChatGPT:
                                 answer += delta.content
                                 (n_input_tokens, n_output_tokens) = self._count_tokens_from_messages(messages, answer, model=token_count_model)
                                 n_first_dialog_messages_removed = (n_dialog_messages_before - len(dialog_messages))
+                                logging.debug(f"Yielding partial answer. Tokens: input={n_input_tokens}, output={n_output_tokens}, messages_removed={n_first_dialog_messages_removed}")
                                 yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
                 else:
                     raise ValueError(f"Unsupported model: {self.model}. Please use the gpt-4 vision model")
-            # except openai.error.InvalidRequestError as e:  # too many tokens
-            #     if len(dialog_messages) == 0:
-            #         raise e
             except Exception as e:
+                logging.error(f"Exception occurred: {e}")
                 if len(dialog_messages) == 0:
                     raise e
 
                 # forget first message in dialog_messages
                 dialog_messages = dialog_messages[1:]
+                # logging.debug(f"Removed first dialog message. Remaining messages: {len(dialog_messages)}")
 
+        # logging.debug(f"Final answer generated. Tokens: input={n_input_tokens}, output={n_output_tokens}, messages_removed={n_first_dialog_messages_removed}")
         yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed # sending final answer
 
     async def send_internetmessage(self, message, dialog_messages=[], chat_mode="internet_connected_assistant"):
@@ -502,7 +508,7 @@ class ChatGPT:
         token_count_model = self.model
         if token_count_model == "gpt-4-turbo":
             token_count_model = "gpt-4"
-        elif token_count_model == "gpt-35-turbo-16k":
+        elif token_count_model == "gpt-3p5-turbo-16k":
             token_count_model = "gpt-3.5-turbo-16k"
 
         Settings.client = OpenAIAzure(
@@ -570,57 +576,60 @@ class ChatGPT:
 
         return f"data:{mime_type};base64,{base64_encoded_data}"
 
-    def _generate_prompt_messages(self, message, dialog_messages, chat_mode, image_buffer: BytesIO = None):
-        
+    def _generate_vision_prompt_messages(self, message, dialog_messages, chat_mode, image_buffer: BytesIO = None):
+        # logging.debug("Generating vision prompt messages.")
         prompt = config.chat_modes[chat_mode]["prompt_start"]
         messages = []
 
-        if image_buffer is None:
-            messages.append({"role": "system", "content": prompt})
-            # Text-based interaction
-            for dialog_message in dialog_messages:
-                messages.append({"role": "user", "content": dialog_message["user"]})
-                messages.append({"role": "assistant", "content": dialog_message["bot"]})
-            messages.append({"role": "user", "content": message})
-        else:
-            # Reset Buffer
+        # Reset Buffer
+        if image_buffer is not None:
             image_buffer.seek(0)
-            messages.append({
-                "role": "system",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": prompt
-                    }
-                ]
-            })
-            # Iterate over dialog messages and append them
-            for dialog_message in dialog_messages:
-                if "user" in dialog_message:
-                    messages.append({
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": dialog_message["user"]
-                            }
-                        ]
-                    })
-                if "bot" in dialog_message:
-                    messages.append({
-                        "role": "assistant",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": dialog_message["bot"]
-                            }
-                        ]
-                    })
-            # Add the current user message
-            user_message_content = [{
-                "type": "text",
-                "text": message
-            }]
+            logging.debug("Image buffer reset.")
+
+        messages.append({
+            "role": "system",
+            "content": [
+                {
+                    "type": "text",
+                    "text": prompt
+                }
+            ]
+        })
+        # logging.debug(f"System message added: {prompt}")
+
+        # Iterate over dialog messages and append them
+        for dialog_message in dialog_messages:
+            if "user" in dialog_message and dialog_message["user"]:
+                messages.append({
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": dialog_message["user"]
+                        }
+                    ]
+                })
+                # logging.debug(f"User message added: {dialog_message['user']}")
+            if "bot" in dialog_message and dialog_message["bot"]:
+                messages.append({
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": dialog_message["bot"]
+                        }
+                    ]
+                })
+                # logging.debug(f"Assistant message added: {dialog_message['bot']}")
+
+        # Add the current user message
+        user_message_content = [{
+            "type": "text",
+            "text": message
+        }]
+        # logging.debug(f"Current user message added: {message}")
+
+        if image_buffer is not None:
             encoded_image = self._encode_image(image_buffer)
             user_message_content.append({
                 "type": "image_url",
@@ -628,10 +637,90 @@ class ChatGPT:
                     "url": encoded_image
                 }
             })
-            messages.append({
-                "role": "user",
-                "content": user_message_content
-            })
+            # logging.debug("Encoded image added to user message content.")
+
+        messages.append({
+            "role": "user",
+            "content": user_message_content
+        })
+        # logging.debug(f"Final user message content: {user_message_content}")
+
+        # logging.debug("Vision prompt messages generated successfully.")
+        return messages
+
+    # def _generate_vision_prompt_messages(self, message, dialog_messages, chat_mode, image_buffer: BytesIO = None):
+        
+    #     prompt = config.chat_modes[chat_mode]["prompt_start"]
+    #     messages = []
+
+    #     # Reset Buffer
+    #     if image_buffer is not None:
+    #         image_buffer.seek(0)
+        
+    #     messages.append({
+    #         "role": "system",
+    #         "content": [
+    #             {
+    #                 "type": "text",
+    #                 "text": prompt
+    #             }
+    #         ]
+    #     })
+    #     # Iterate over dialog messages and append them
+    #     for dialog_message in dialog_messages:
+    #         if "user" in dialog_message:
+    #             messages.append({
+    #                 "role": "user",
+    #                 "content": [
+    #                     {
+    #                         "type": "text",
+    #                         "text": dialog_message["user"]
+    #                     }
+    #                 ]
+    #             })
+    #         if "bot" in dialog_message:
+    #             messages.append({
+    #                 "role": "assistant",
+    #                 "content": [
+    #                     {
+    #                         "type": "text",
+    #                         "text": dialog_message["bot"]
+    #                     }
+    #                 ]
+    #             })
+    #     # Add the current user message
+    #     user_message_content = [{
+    #         "type": "text",
+    #         "text": message
+    #     }]
+
+    #     if image_buffer is not None:
+    #         encoded_image = self._encode_image(image_buffer)
+    #         user_message_content.append({
+    #             "type": "image_url",
+    #             "image_url": {
+    #                 "url": encoded_image
+    #             }
+    #         })
+
+    #     messages.append({
+    #         "role": "user",
+    #         "content": user_message_content
+    #     })
+
+    #     return messages
+
+    def _generate_prompt_messages(self, message, dialog_messages, chat_mode):
+        
+        prompt = config.chat_modes[chat_mode]["prompt_start"]
+        messages = []
+
+        messages.append({"role": "system", "content": prompt})
+        # Text-based interaction
+        for dialog_message in dialog_messages:
+            messages.append({"role": "user", "content": dialog_message["user"]})
+            messages.append({"role": "assistant", "content": dialog_message["bot"]})
+        messages.append({"role": "user", "content": message})
 
         return messages
 
@@ -656,7 +745,7 @@ class ChatGPT:
             tokens_per_name = -1
         elif model == "gpt-4":
             tokens_per_message = 3
-            tokens_per_name = 1
+            tokens_per_name = -1
         else:
             # If the model is unknown, return default token values
             return default_n_input_tokens, default_n_output_tokens
@@ -703,7 +792,7 @@ class ChatGPT:
                 file_path = os.path.join(root, file)
                 os.remove(file_path)
 
-    def _text_extractor(self, url):
+    def _text_extractor(self, url, debug=False):
 
         if url:
             # Extract the article
@@ -715,14 +804,16 @@ class ChatGPT:
                 if len(article.text.split()) < 75:
                     raise Exception("Article is too short. Probably the article is behind a paywall.")
             except Exception as e:
-                print("Failed to download and parse article from URL using newspaper package: %s. Error: %s", url, str(e))
+                if debug:
+                    print("Failed to download and parse article from URL using newspaper package: %s. Error: %s", url, str(e))
                 # Try an alternate method using requests and beautifulsoup
                 try:
                     req = requests.get(url)
                     soup = BeautifulSoup(req.content, 'html.parser')
                     article.text = soup.get_text()
                 except Exception as e:
-                    print("Failed to download article using beautifulsoup method from URL: %s. Error: %s", url, str(e))
+                    if debug:
+                        print("Failed to download article using beautifulsoup method from URL: %s. Error: %s", url, str(e))
             return article.text
         else:
             return None

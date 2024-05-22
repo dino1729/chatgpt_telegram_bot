@@ -1,24 +1,24 @@
-available_text_models: ["gpt-4-turbo", "gpt-4", "gpt-35-turbo-16k", "cohere", "llama3-70b-8192", "mixtral-8x7b-32768", "gemini-1.5-pro-latest", "mixtral8x7b"]
+available_text_models: ["gpt-4", "gpt-4-turbo", "gpt-3p5-turbo-16k", "cohere", "llama3-70b-8192", "mixtral-8x7b-32768", "gemini-1.5-pro-latest", "mixtral8x7b"]
 
 info:
 
-  gpt-4-turbo:
+  gpt-4:
     type: chat_completion
-    name: G4T
-    description: GPT-4-Turbo is the <b>smartest</b> and most advanced model in the world. But it is slower and not as cost-efficient as ChatGPT. Best choice for <b>complex</b> intellectual tasks.
+    name: G4o
+    description: GPT-4o is the <b>smartest</b> and most advanced multimodal model in the world. It is 2x faster and 50% cheaper than GPT-4-Turbo. Best choice for <b>complex</b> intellectual tasks.
 
     price_per_1000_input_tokens: 0.03
     price_per_1000_output_tokens: 0.06
 
     scores:
       Smart: 5
-      Fast: 2
+      Fast: 4
       Cheap: 4
 
-  gpt-4:
+  gpt-4-turbo:
     type: chat_completion
-    name: G4V
-    description: GPT-4-Vision is GPT-4 Plus Vision. It's a model that can handle both text and images. It's a bit slower and more expensive than ChatGPT, but it's the best choice for <b>complex</b> tasks that require both text and image processing.
+    name: G4T
+    description: GPT-4-Turbo is GPT-4 Turbo model. It's a bit slower and more expensive than ChatGPT, but it's the best choice for <b>complex</b> tasks that require both text and image processing.
 
     price_per_1000_input_tokens: 0.01
     price_per_1000_output_tokens: 0.03
@@ -28,7 +28,7 @@ info:
       fast: 2
       cheap: 3
       
-  gpt-35-turbo-16k:
+  gpt-3p5-turbo-16k:
     type: chat_completion
     name: G35T
     description: ChatGPT is that well-known model. It's <b>fast</b> and <b>cheap</b>. Ideal for everyday tasks. If there are some tasks it can't handle, try the <b>GPT-4</b>.
