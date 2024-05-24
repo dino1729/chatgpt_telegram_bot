@@ -13,8 +13,8 @@ openai_gpt35_modelname: ""
 azure_embedding_deploymentid: ""
 openai_embedding_modelname: ""
 
-llama2_api_key: ""
-llama2_api_base: ""
+ollama_api_key: ""
+ollama_api_base: ""
 
 rvctts_api_base: ""
 

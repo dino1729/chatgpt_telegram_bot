@@ -25,8 +25,8 @@ openai_gpt35_modelname = config_yaml["openai_gpt35_modelname"]
 azure_embedding_deploymentid = config_yaml["azure_embedding_deploymentid"]
 openai_embedding_modelname = config_yaml["openai_embedding_modelname"]
 
-llama2_api_key = config_yaml["llama2_api_key"]
-llama2_api_base = config_yaml["llama2_api_base"]
+ollama_api_key = config_yaml["ollama_api_key"]
+ollama_api_base = config_yaml["ollama_api_base"]
 
 rvctts_api_base = config_yaml["rvctts_api_base"]
 

@@ -1,4 +1,4 @@
-available_text_models: ["gpt-4", "gpt-4-turbo", "gpt-3p5-turbo-16k", "cohere", "llama3-70b-8192", "mixtral-8x7b-32768", "gemini-1.5-pro-latest", "mixtral8x7b"]
+available_text_models: ["gpt-4", "gpt-4-turbo", "gpt-3p5-turbo-16k", "cohere", "llama3-70b-8192", "mixtral-8x7b-32768", "gemini-1.5-pro-latest", "ollama"]
 
 info:
 
@@ -93,7 +93,7 @@ info:
       Fast: 2
       Cheap: 3
 
-  mixtral8x7b:
+  ollama:
     type: chat_completion
     name: Mix
     description: Mixtral 8x7B, a high-quality sparse mixture of experts model (SMoE) with open weights. Licensed under Apache 2.0. Mixtral outperforms Llama 2 70B on most benchmarks with 6x faster inference. It is the strongest open-weight model with a permissive license and the best model overall regarding cost/performance trade-offs. In particular, it matches or outperforms GPT3.5 on most standard benchmarks.

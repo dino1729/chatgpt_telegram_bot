@@ -20,7 +20,7 @@ llama-index-tools-weather
 llama-index-tools-google
 llama-index-tools-wikipedia
 pyowm
-llama-index==0.10.33
+llama-index==0.10.38
 langchain>=0.0.329
 newspaper3k
 beautifulsoup4

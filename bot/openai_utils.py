@@ -32,8 +32,8 @@ from llama_index.tools.bing_search import BingSearchToolSpec
 from llama_index.core import Settings
 
 # logging.basicConfig(stream=sys.stdout, level=logging.CRITICAL)
-# logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+# logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 azure_api_key = config.azure_api_key
@@ -63,8 +63,8 @@ azuretexttranslatorkey = config.azuretexttranslatorkey
 
 rvctts_api_base = config.rvctts_api_base
 
-llama2_api_key = config.llama2_api_key
-llama2_api_base = config.llama2_api_base
+ollama_api_key = config.ollama_api_key
+ollama_api_base = config.ollama_api_base
 
 sum_template = config.sum_template
 eg_template = config.eg_template
@@ -132,7 +132,7 @@ OPENAI_COMPLETION_OPTIONS = {
 
 class ChatGPT:
     def __init__(self, model="gpt-4-turbo"):
-        assert model in {"gpt-4-turbo", "gpt-4", "gpt-3p5-turbo-16k", "cohere", "llama3-70b-8192", "mixtral-8x7b-32768", "gemini-1.5-pro-latest", "mixtral8x7b"}, f"Unknown model: {model}"
+        assert model in {"gpt-4-turbo", "gpt-4", "gpt-3p5-turbo-16k", "cohere", "llama3-70b-8192", "mixtral-8x7b-32768", "gemini-1.5-pro-latest", "ollama"}, f"Unknown model: {model}"
         self.model = model
 
     async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
@@ -165,14 +165,14 @@ class ChatGPT:
                     )
                     answer = r.choices[0].message["content"]
                     n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
-                elif self.model == "mixtral8x7b":
+                elif self.model == "ollama":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     local_client = OpenAI(
-                        api_key = llama2_api_key,
-                        api_base = llama2_api_base
+                        api_key = ollama_api_key,
+                        base_url = ollama_api_base
                     )
                     r = local_client.chat.completions.create(
-                        model=self.model,
+                        model="mistral",
                         messages=messages,
                         **OPENAI_COMPLETION_OPTIONS
                     )
@@ -294,21 +294,30 @@ class ChatGPT:
                                 n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
                                 n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                                 yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
-                elif self.model == "mixtral8x7b":
+                elif self.model == "ollama":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     local_client = OpenAI(
-                        api_key = llama2_api_key,
-                        api_base = llama2_api_base
+                        api_key = ollama_api_key,
+                        base_url = ollama_api_base
                     )
                     r_gen = await local_client.chat.completions.create(
-                        model=self.model,
+                        model="mistral",
                         messages=messages,
+                        stream=True,
                         **OPENAI_COMPLETION_OPTIONS
                     )
-                    answer = r_gen.choices[0].message["content"]
-                    n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
-                    n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
-                    yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+                    # answer = r_gen.choices[0].message["content"]
+                    # n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model="gpt-3.5-turbo")
+                    # n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+                    # yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+                    for r_item in r_gen:
+                        if r_item.choices:
+                            delta = r_item.choices[0].delta
+                            if delta.content:
+                                answer += delta.content
+                                n_input_tokens, n_output_tokens = self._count_tokens_from_messages(messages, answer, model=token_count_model)
+                                n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
+                                yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
                 elif self.model == "cohere":
                     messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
                     co = cohere.Client(cohere_api_key)
@@ -647,68 +656,6 @@ class ChatGPT:
 
         # logging.debug("Vision prompt messages generated successfully.")
         return messages
-
-    # def _generate_vision_prompt_messages(self, message, dialog_messages, chat_mode, image_buffer: BytesIO = None):
-        
-    #     prompt = config.chat_modes[chat_mode]["prompt_start"]
-    #     messages = []
-
-    #     # Reset Buffer
-    #     if image_buffer is not None:
-    #         image_buffer.seek(0)
-        
-    #     messages.append({
-    #         "role": "system",
-    #         "content": [
-    #             {
-    #                 "type": "text",
-    #                 "text": prompt
-    #             }
-    #         ]
-    #     })
-    #     # Iterate over dialog messages and append them
-    #     for dialog_message in dialog_messages:
-    #         if "user" in dialog_message:
-    #             messages.append({
-    #                 "role": "user",
-    #                 "content": [
-    #                     {
-    #                         "type": "text",
-    #                         "text": dialog_message["user"]
-    #                     }
-    #                 ]
-    #             })
-    #         if "bot" in dialog_message:
-    #             messages.append({
-    #                 "role": "assistant",
-    #                 "content": [
-    #                     {
-    #                         "type": "text",
-    #                         "text": dialog_message["bot"]
-    #                     }
-    #                 ]
-    #             })
-    #     # Add the current user message
-    #     user_message_content = [{
-    #         "type": "text",
-    #         "text": message
-    #     }]
-
-    #     if image_buffer is not None:
-    #         encoded_image = self._encode_image(image_buffer)
-    #         user_message_content.append({
-    #             "type": "image_url",
-    #             "image_url": {
-    #                 "url": encoded_image
-    #             }
-    #         })
-
-    #     messages.append({
-    #         "role": "user",
-    #         "content": user_message_content
-    #     })
-
-    #     return messages
 
     def _generate_prompt_messages(self, message, dialog_messages, chat_mode):
         

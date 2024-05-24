@@ -483,7 +483,10 @@ async def voicemessage_handle(update: Update, context: CallbackContext, message=
             chatgpt_instance = openai_utils.ChatGPT(model=current_model)
             if config.enable_message_streaming:
                 if chat_mode != "internet_connected_assistant":
-                    gen = chatgpt_instance.send_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
+                    if current_model != "gpt-4":
+                        gen = chatgpt_instance.send_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
+                    else:
+                        gen = chatgpt_instance.send_vision_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
                 else:
                     gen = chatgpt_instance.send_internetmessage(_message, dialog_messages=dialog_messages, chat_mode="internet_connected_assistant")
             else:
@@ -564,18 +567,25 @@ async def is_previous_message_not_answered_yet(update: Update, context: Callback
         return False
 
 async def voice_message_handle(update: Update, context: CallbackContext):
+    logger.debug("Handling voice message")
+    
     # check if bot was mentioned (for group chats)
     if not await is_bot_mentioned(update, context):
+        logger.debug("Bot not mentioned in group chat")
         return
 
     await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context): return
+    if await is_previous_message_not_answered_yet(update, context): 
+        logger.debug("Previous message not answered yet")
+        return
 
     user_id = update.message.from_user.id
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
     chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
 
     voice = update.message.voice
+    logger.debug(f"Received voice message from user {user_id}")
+
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_dir_path = Path(tmp_dir)
         voice_ogg_path = tmp_dir_path / "voice.ogg"
@@ -583,12 +593,15 @@ async def voice_message_handle(update: Update, context: CallbackContext):
         # download
         voice_file = await context.bot.get_file(voice.file_id)
         await voice_file.download_to_drive(voice_ogg_path)
+        logger.debug(f"Downloaded voice message to {voice_ogg_path}")
 
         # convert to wav
         voice_wav_path = tmp_dir_path / "voice.wav"
-        # pydub.AudioSegment.from_file(voice_ogg_path).export(voice_mp3_path, format="mp3")
         pydub.AudioSegment.from_file(voice_ogg_path).set_channels(1).set_sample_width(2).set_frame_rate(16000).export(voice_wav_path, format="wav")
+        logger.debug(f"Converted voice message to WAV format at {voice_wav_path}")
+
         transcribed_text = await openai_utils.transcribe_audio(voice_wav_path)
+        logger.debug(f"Transcribed text: {transcribed_text}")
 
     text = f"🎤 Detected language <i>{transcribed_text[1]}</i>: <i>{transcribed_text[0]}</i>"
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
@@ -601,11 +614,16 @@ async def voice_message_handle(update: Update, context: CallbackContext):
         tmp_dir_path = Path(tmp_dir)
         tts_output_path = tmp_dir_path / "bot_response.mp3"
         translated_message = await openai_utils.translate_text(message, transcribed_text[1])
+        logger.debug(f"Translated message: {translated_message}")
+
         if chat_mode == "rick_sanchez":
             await openai_utils.local_text_to_speech(message, tts_output_path, "ricksanchez")
         else:
             await openai_utils.text_to_speech(translated_message, tts_output_path, transcribed_text[1])
+        logger.debug(f"Generated TTS audio at {tts_output_path}")
+
         await context.bot.send_audio(update.message.chat_id, audio=tts_output_path.open("rb"))
+        logger.debug("Sent TTS audio response to user")
 
 async def generate_image_handle(update: Update, context: CallbackContext, message=None):
     await register_user_if_not_exists(update, context, update.message.from_user)
