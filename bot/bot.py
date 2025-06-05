@@ -12,6 +12,7 @@ from datetime import datetime
 import openai
 
 import telegram
+import shutil
 from telegram import (
     Update,
     User,
@@ -39,33 +40,38 @@ import io
 # setup
 db = database.Database()
 logger = logging.getLogger(__name__)
+FFMPEG_AVAILABLE = shutil.which('ffmpeg') is not None
 
 user_semaphores = {}
 user_tasks = {}
 
-HELP_MESSAGE = """Commands:
-⚪ /retry – Regenerate last bot answer
-⚪ /new – Start new dialog
-⚪ /mode – Select chat mode
-⚪ /settings – Show settings
-⚪ /balance – Show balance
-⚪ /help – Show help
+HELP_MESSAGE = """
+👋 <b>Hello!</b> I'm your friendly <b>ChatGPT</b> bot 🤖
 
-🎨 Generate images from text prompts in <b>👩‍🎨 Artist</b> mode (DALL-E 3)
-🎨 Advanced image generation and editing with <b>🎨 GPT-Image Pro</b> mode (GPT-Image-1)
-👥 Add bot to <b>group chat</b>: /help_group_chat
-🎤 You can send <b>Voice Messages</b> instead of text
+🔹 <b>/new</b> – Start a fresh conversation
+🔄 <b>/retry</b> – Regenerate my last response
+🎭 <b>/mode</b> – Switch chat mode (e.g. Assistant, Artist)
+⚙️ <b>/settings</b> – View or update your preferences
+💰 <b>/balance</b> – Check your usage balance
+❓ <b>/help</b> – Show this help message
+
+🖌️ In <b>Artist</b> mode you can generate images with DALL·E 3
+🎨 In <b>GPT-Image Pro</b> you get advanced image editing tools
+👥 Add me to group chats and mention me (@bot) to talk
+🎤 Send voice messages and I'll transcribe them for you
+
+Let’s get creative! 🌟
 """
 
-HELP_GROUP_CHAT_MESSAGE = """You can add bot to any <b>group chat</b> to help and entertain its participants!
+HELP_GROUP_CHAT_MESSAGE = """
+👥 <b>Group Chat Mode Enabled!</b>
 
-Instructions (see <b>video</b> below):
-1. Add the bot to the group chat
-2. Make it an <b>admin</b>, so that it can see messages (all other rights can be restricted)
-3. You're awesome!
+Bring AI-powered fun to your group:
+1️⃣ Add the bot to your group chat
+2️⃣ Grant <b>Read Messages</b> (admin role is enough)
+3️⃣ Mention me <b>@{bot_username}</b> or reply to any message to get started
 
-To get a reply from the bot in the chat – @ <b>tag</b> it or <b>reply</b> to its message.
-For example: "{bot_username} write a poem about Telegram"
+Check out the quick tutorial video below for details! 🎥
 """
 
 
@@ -111,25 +117,29 @@ def smart_truncate_message(text, max_length=4096):
     if last_space > available_length * 0.8:
         return text[:last_space] + continuation
     
-    # 4. Fallback: hard truncate with indicator
-    return truncated_text + continuation
+    # 4. Fallback: hard truncate with indicator, enforce max_length
+    fallback = truncated_text + continuation
+    return fallback[:max_length]
 
 async def register_user_if_not_exists(update: Update, context: CallbackContext, user: User):
+    # register new user; use effective_chat for chat_id
     if not db.check_if_user_exists(user.id):
+        chat = getattr(update, 'effective_chat', None)
+        chat_id = chat.id if chat else None
         db.add_new_user(
             user.id,
-            update.message.chat_id,
+            chat_id,
             username=user.username,
             first_name=user.first_name,
-            last_name= user.last_name
+            last_name=user.last_name
         )
         db.start_new_dialog(user.id)
 
     if db.get_user_attribute(user.id, "current_dialog_id") is None:
         db.start_new_dialog(user.id)
 
-    if user.id not in user_semaphores:
-        user_semaphores[user.id] = asyncio.Semaphore(1)
+    # ensure per-user semaphore without race
+    user_semaphores.setdefault(user.id, asyncio.Semaphore(1))
 
     if db.get_user_attribute(user.id, "current_model") is None:
         db.set_user_attribute(user.id, "current_model", config.models["available_text_models"][0])
@@ -157,23 +167,24 @@ async def register_user_if_not_exists(update: Update, context: CallbackContext, 
     if db.get_user_attribute(user.id, "n_gpt_image_1_images") is None:
         db.set_user_attribute(user.id, "n_gpt_image_1_images", 0)
 
-async def is_bot_mentioned(update: Update, context: CallbackContext):
-     try:
-         message = update.message
-
-         if message.chat.type == "private":
-             return True
-
-         if message.text is not None and ("@" + context.bot.username) in message.text:
-             return True
-
-         if message.reply_to_message is not None:
-             if message.reply_to_message.from_user.id == context.bot.id:
-                 return True
-     except:
-         return True
-     else:
-         return False
+async def is_bot_mentioned(update: Update, context: CallbackContext) -> bool:
+    try:
+        msg = update.effective_message
+        if not msg or not msg.chat:
+            return False
+        if msg.chat.type == 'private':
+            return True
+        if msg.text and f"@{context.bot.username}" in msg.text:
+            return True
+        reply = msg.reply_to_message
+        if reply and reply.from_user and reply.from_user.id == context.bot.id:
+            return True
+    except AttributeError:
+        return False
+    except Exception:
+        logger.exception('Error in is_bot_mentioned')
+        return False
+    return False
 
 async def start_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
@@ -182,7 +193,11 @@ async def start_handle(update: Update, context: CallbackContext):
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
     db.start_new_dialog(user_id)
 
-    reply_text = "Hi! I'm <b>ChatGPT</b> bot implemented with OpenAI API 🤖\n\n"
+    # Warm welcome with feature overview
+    reply_text = (
+        "👋 <b>Welcome!</b> I’m ChatGPT 🤖, your AI companion for chat, code, images, and more!\n\n"
+        "✨ Ready to start? Here are some handy commands:\n"
+    )
     reply_text += HELP_MESSAGE
 
     await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
@@ -192,17 +207,21 @@ async def help_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
     user_id = update.message.from_user.id
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
+    # Show refreshed help
     await update.message.reply_text(HELP_MESSAGE, parse_mode=ParseMode.HTML)
 
 async def help_group_chat_handle(update: Update, context: CallbackContext):
-     await register_user_if_not_exists(update, context, update.message.from_user)
-     user_id = update.message.from_user.id
-     db.set_user_attribute(user_id, "last_interaction", datetime.now())
+    await register_user_if_not_exists(update, context, update.message.from_user)
+    user_id = update.message.from_user.id
+    db.set_user_attribute(user_id, "last_interaction", datetime.now())
 
-     text = HELP_GROUP_CHAT_MESSAGE.format(bot_username="@" + context.bot.username)
+    text = HELP_GROUP_CHAT_MESSAGE.format(bot_username="@" + context.bot.username)
 
-     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
-     await update.message.reply_video(config.help_group_chat_video_path)
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+    await update.message.reply_video(
+        config.help_group_chat_video_path,
+        caption="🎬 How to set me up in group chats"
+    )
 
 async def retry_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
@@ -213,7 +232,7 @@ async def retry_handle(update: Update, context: CallbackContext):
 
     dialog_messages = db.get_dialog_messages(user_id, dialog_id=None)
     if len(dialog_messages) == 0:
-        await update.message.reply_text("No message to retry 🤷‍♂️")
+        await update.message.reply_text("🤷‍♂️ Oops! There's nothing to retry.", parse_mode=ParseMode.HTML)
         return
 
     last_dialog_message = dialog_messages.pop()
@@ -679,7 +698,7 @@ async def voice_message_handle(update: Update, context: CallbackContext):
         pydub.AudioSegment.from_file(voice_ogg_path).set_channels(1).set_sample_width(2).set_frame_rate(16000).export(voice_wav_path, format="wav")
         logger.debug(f"Converted voice message to WAV format at {voice_wav_path}")
 
-        transcribed_text = await openai_utils.transcribe_audio(voice_wav_path)
+        transcribed_text = await openai_utils.transcribe_audio(voice_wav_path, openai_utils.config_manager)
         logger.debug(f"Transcribed text: {transcribed_text}")
 
     text = f"🎤 Detected language <i>{transcribed_text[1]}</i>: <i>{transcribed_text[0]}</i>"
@@ -692,13 +711,13 @@ async def voice_message_handle(update: Update, context: CallbackContext):
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_dir_path = Path(tmp_dir)
         tts_output_path = tmp_dir_path / "bot_response.mp3"
-        translated_message = await openai_utils.translate_text(message, transcribed_text[1])
+        translated_message = await openai_utils.translate_text(message, transcribed_text[1], openai_utils.config_manager)
         logger.debug(f"Translated message: {translated_message}")
 
         if chat_mode == "rick_sanchez":
-            await openai_utils.local_text_to_speech(message, tts_output_path, "ricksanchez")
+            await openai_utils.local_text_to_speech(message, tts_output_path, "ricksanchez", openai_utils.config_manager)
         else:
-            await openai_utils.text_to_speech(translated_message, tts_output_path, transcribed_text[1])
+            await openai_utils.text_to_speech(translated_message, tts_output_path, transcribed_text[1], openai_utils.config_manager)
         logger.debug(f"Generated TTS audio at {tts_output_path}")
 
         await context.bot.send_audio(update.message.chat_id, audio=tts_output_path.open("rb"))
@@ -861,7 +880,7 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
 
     db.start_new_dialog(user_id)
-    await update.message.reply_text("Starting new dialog ✅")
+    await update.message.reply_text("🔄 Starting a fresh conversation...", parse_mode=ParseMode.HTML)
 
     chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
     await update.message.reply_text(f"{config.chat_modes[chat_mode]['welcome_message']}", parse_mode=ParseMode.HTML)
@@ -876,11 +895,11 @@ async def cancel_handle(update: Update, context: CallbackContext):
         task = user_tasks[user_id]
         task.cancel()
     else:
-        await update.message.reply_text("<i>Nothing to cancel...</i>", parse_mode=ParseMode.HTML)
+        await update.message.reply_text("😅 Nothing to cancel right now.", parse_mode=ParseMode.HTML)
 
 def get_chat_mode_menu(page_index: int):
     n_chat_modes_per_page = config.n_chat_modes_per_page
-    text = f"Select <b>chat mode</b> ({len(config.chat_modes)} modes available):"
+    text = f"🎭 Choose your <b>chat mode</b> ({len(config.chat_modes)} available):"
 
     # buttons
     chat_mode_keys = list(config.chat_modes.keys())
@@ -1139,7 +1158,10 @@ def run_bot() -> None:
     application.add_handler(CommandHandler("new", new_dialog_handle, filters=user_filter))
     application.add_handler(CommandHandler("cancel", cancel_handle, filters=user_filter))
 
-    application.add_handler(MessageHandler(filters.VOICE & user_filter, voice_message_handle))
+    if FFMPEG_AVAILABLE:
+        application.add_handler(MessageHandler(filters.VOICE & user_filter, voice_message_handle))
+    else:
+        logger.warning('ffmpeg not found; voice message handling is disabled')
 
     application.add_handler(CommandHandler("mode", show_chat_modes_handle, filters=user_filter))
     application.add_handler(CallbackQueryHandler(show_chat_modes_callback_handle, pattern="^show_chat_modes"))

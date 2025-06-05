@@ -2,6 +2,7 @@
 AI model provider implementations for different services
 """
 import logging
+import asyncio
 
 # Azure OpenAI for text and image per models.yml
 try:
@@ -25,23 +26,51 @@ class ModelProviders:
         )
 
     async def send_azure_openai_message(self, model, messages, completion_options):
-        client = self.get_azure_openai_client()
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            **completion_options
-        )
-        return response.choices[0].message.content
+        # Retry logic with exponential backoff
+        max_retries = getattr(self.config, 'max_api_retries', 1)
+        backoff = getattr(self.config, 'api_retry_backoff', 1.0)
+        last_err = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                client = self.get_azure_openai_client()
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    **completion_options
+                )
+                return response.choices[0].message.content
+            except Exception as e:
+                last_err = e
+                if attempt >= max_retries:
+                    logging.error(f"Azure OpenAI message failed after {attempt} attempts: {e}")
+                    raise
+                wait = backoff * (2 ** (attempt - 1))
+                logging.warning(f"Azure OpenAI message error, retry {attempt}/{max_retries} in {wait:.1f}s: {e}")
+                await asyncio.sleep(wait)
 
     async def send_azure_openai_stream(self, model, messages, completion_options):
-        client = self.get_azure_openai_client()
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            stream=True,
-            **completion_options
-        )
-        return response
+        # Retry creation of streaming generator
+        max_retries = getattr(self.config, 'max_api_retries', 1)
+        backoff = getattr(self.config, 'api_retry_backoff', 1.0)
+        last_err = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                client = self.get_azure_openai_client()
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    stream=True,
+                    **completion_options
+                )
+                return response
+            except Exception as e:
+                last_err = e
+                if attempt >= max_retries:
+                    logging.error(f"Azure OpenAI stream failed after {attempt} attempts: {e}")
+                    raise
+                wait = backoff * (2 ** (attempt - 1))
+                logging.warning(f"Azure OpenAI stream error, retry {attempt}/{max_retries} in {wait:.1f}s: {e}")
+                await asyncio.sleep(wait)
 
     def configure_gemini(self):
         """Dynamically import and configure Google Gemini model using importlib"""
@@ -63,6 +92,20 @@ class ModelProviders:
         )
 
     async def send_gemini_message(self, messages):
-        gemini = self.configure_gemini()
-        response = await gemini.generate_content_async(str(messages).replace("'", '"'))
-        return response.text
+        # Retry logic for Gemini
+        max_retries = getattr(self.config, 'max_api_retries', 1)
+        backoff = getattr(self.config, 'api_retry_backoff', 1.0)
+        last_err = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                gemini = self.configure_gemini()
+                response = await gemini.generate_content_async(str(messages).replace("'", '"'))
+                return response.text
+            except Exception as e:
+                last_err = e
+                if attempt >= max_retries:
+                    logging.error(f"Gemini message failed after {attempt} attempts: {e}")
+                    raise
+                wait = backoff * (2 ** (attempt - 1))
+                logging.warning(f"Gemini message error, retry {attempt}/{max_retries} in {wait:.1f}s: {e}")
+                await asyncio.sleep(wait)
