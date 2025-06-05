@@ -6,7 +6,7 @@ Following are the models supported:
 
 Azure OpenAI:
 gpt-35-turbo-16k
-gpt-4
+gpt-4o
 
 Palm
 Cohere
@@ -49,6 +49,6 @@ Adding support for voice conversation with LLMs! Just talk to the LLMs like you 
 
 4. 🔥 And now **run**:
     ```bash
-    docker-compose --env-file config/config.env up --build
+    docker compose --env-file config/config.env up --build
     ```
 

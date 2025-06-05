@@ -5,6 +5,8 @@ import html
 import json
 import tempfile
 import pydub
+import base64
+from io import BytesIO
 from pathlib import Path
 from datetime import datetime
 import openai
@@ -34,8 +36,6 @@ import database
 import openai_utils
 import io
 
-import base64
-
 # setup
 db = database.Database()
 logger = logging.getLogger(__name__)
@@ -51,7 +51,8 @@ HELP_MESSAGE = """Commands:
 ⚪ /balance – Show balance
 ⚪ /help – Show help
 
-🎨 Generate images from text prompts in <b>👩‍🎨 Artist</b> /mode
+🎨 Generate images from text prompts in <b>👩‍🎨 Artist</b> mode (DALL-E 3)
+🎨 Advanced image generation and editing with <b>🎨 GPT-Image Pro</b> mode (GPT-Image-1)
 👥 Add bot to <b>group chat</b>: /help_group_chat
 🎤 You can send <b>Voice Messages</b> instead of text
 """
@@ -71,6 +72,47 @@ For example: "{bot_username} write a poem about Telegram"
 def split_text_into_chunks(text, chunk_size):
     for i in range(0, len(text), chunk_size):
         yield text[i:i + chunk_size]
+
+def smart_truncate_message(text, max_length=4096):
+    """
+    Intelligently truncate a message at natural boundaries with continuation indicator.
+    """
+    if len(text) <= max_length:
+        return text
+    
+    # Reserve space for continuation indicator
+    continuation = "\n\n[... message continues ...]"
+    available_length = max_length - len(continuation)
+    
+    if available_length <= 0:
+        return text[:max_length]
+    
+    # Try to find natural breakpoints in order of preference
+    truncated_text = text[:available_length]
+    
+    # 1. Try to break at last paragraph (double newline)
+    last_paragraph = truncated_text.rfind('\n\n')
+    if last_paragraph > available_length * 0.7:  # Don't cut too much
+        return text[:last_paragraph] + continuation
+    
+    # 2. Try to break at last sentence
+    sentence_endings = ['.', '!', '?']
+    last_sentence = -1
+    for ending in sentence_endings:
+        pos = truncated_text.rfind(ending + ' ')
+        if pos > last_sentence:
+            last_sentence = pos + 1
+    
+    if last_sentence > available_length * 0.7:
+        return text[:last_sentence] + continuation
+    
+    # 3. Try to break at last complete word
+    last_space = truncated_text.rfind(' ')
+    if last_space > available_length * 0.8:
+        return text[:last_space] + continuation
+    
+    # 4. Fallback: hard truncate with indicator
+    return truncated_text + continuation
 
 async def register_user_if_not_exists(update: Update, context: CallbackContext, user: User):
     if not db.check_if_user_exists(user.id):
@@ -110,6 +152,10 @@ async def register_user_if_not_exists(update: Update, context: CallbackContext, 
     # image generation
     if db.get_user_attribute(user.id, "n_generated_images") is None:
         db.set_user_attribute(user.id, "n_generated_images", 0)
+    
+    # GPT-Image-1 usage tracking
+    if db.get_user_attribute(user.id, "n_gpt_image_1_images") is None:
+        db.set_user_attribute(user.id, "n_gpt_image_1_images", 0)
 
 async def is_bot_mentioned(update: Update, context: CallbackContext):
      try:
@@ -200,6 +246,10 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
     if chat_mode == "artist":
         await generate_image_handle(update, context, message=message)
         return
+    
+    if chat_mode == "gpt_image_pro":
+        await generate_image_gpt_pro_handle(update, context, message=message)
+        return
 
     current_model = db.get_user_attribute(user_id, "current_model")
 
@@ -221,10 +271,6 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
             # send typing action
             await update.message.chat.send_action(action="typing")
-
-            if update.message.effective_attachment and current_model != "gpt-4":
-                await update.message.reply_text("It looks like you've uploaded a picture but you're not using the gpt-4 model. Please change your settings in /settings")
-                return
 
             if _message is None or len(_message) == 0:
                 await update.message.reply_text("😅 You sent <b>empty message</b>. Please, try again!", parse_mode=ParseMode.HTML)
@@ -256,10 +302,22 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
             async for gen_item in gen:
                 status, answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = gen_item
 
-                answer = answer[:4096]  # telegram message limit
+                answer = smart_truncate_message(answer)  # smart telegram message limit
 
-                # update only when 100 new symbols are ready
-                if abs(len(answer) - len(prev_answer)) < 100 and status != "finished":
+                # Smart update logic: update more frequently as we approach the limit
+                current_length = len(answer)
+                length_diff = abs(current_length - len(prev_answer))
+                
+                # Update thresholds based on message length
+                if current_length > 3500:  # Close to limit - update every 50 chars
+                    update_threshold = 50
+                elif current_length > 2000:  # Medium length - update every 75 chars  
+                    update_threshold = 75
+                else:  # Short messages - update every 100 chars
+                    update_threshold = 100
+                
+                # Always update when finished or threshold met
+                if length_diff < update_threshold and status != "finished":
                     continue
 
                 try:
@@ -293,7 +351,9 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
         except Exception as e:
             error_text = f"Something went wrong during completion. Reason: {e}"
+            print(traceback.format_exc())
             logger.error(error_text)
+            logger.error(traceback.format_exc())
             await update.message.reply_text(error_text)
             return
 
@@ -306,10 +366,6 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
             await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
     async def vision_message_handle_fn():
-
-        if current_model != "gpt-4":
-            await update.message.reply_text("🥲 Images processing is only available for <b>gpt-4</b> model. Please change your settings in /settings", parse_mode=ParseMode.HTML)
-            return
 
         # new dialog timeout
         if use_new_dialog_timeout:
@@ -365,10 +421,22 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
             async for gen_item in gen:
                 status, answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = gen_item
 
-                answer = answer[:4096]  # telegram message limit
+                answer = smart_truncate_message(answer)  # smart telegram message limit
 
-                # update only when 100 new symbols are ready
-                if abs(len(answer) - len(prev_answer)) < 100 and status != "finished":
+                # Smart update logic: update more frequently as we approach the limit
+                current_length = len(answer)
+                length_diff = abs(current_length - len(prev_answer))
+                
+                # Update thresholds based on message length
+                if current_length > 3500:  # Close to limit - update every 50 chars
+                    update_threshold = 50
+                elif current_length > 2000:  # Medium length - update every 75 chars  
+                    update_threshold = 75
+                else:  # Short messages - update every 100 chars
+                    update_threshold = 100
+                
+                # Always update when finished or threshold met
+                if length_diff < update_threshold and status != "finished":
                     continue
 
                 try:
@@ -397,6 +465,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
         except Exception as e:
             error_text = f"Something went wrong during completion. Reason: {e}"
             logger.error(error_text)
+            logger.error(traceback.format_exc())
             await update.message.reply_text(error_text)
             return
         
@@ -411,8 +480,8 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
     async with user_semaphores[user_id]:
         task = asyncio.create_task(
             vision_message_handle_fn()
-            # if current_model == "gpt-4" and update.message.photo is not None and len(update.message.photo) > 0
-            if current_model == "gpt-4" or (update.message.photo is not None and len(update.message.photo) > 0)
+            # Always use vision message handling if there's an image attachment
+            if (update.message.photo is not None and len(update.message.photo) > 0) or update.message.effective_attachment
             else message_handle_fn()
         )
         user_tasks[user_id] = task
@@ -451,10 +520,6 @@ async def voicemessage_handle(update: Update, context: CallbackContext, message=
     user_id = update.message.from_user.id
     chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
 
-    if chat_mode == "artist":
-        await generate_image_handle(update, context, message=message)
-        return
-
     async def voicemessage_handle_fn():
         # new dialog timeout
         if use_new_dialog_timeout:
@@ -483,10 +548,8 @@ async def voicemessage_handle(update: Update, context: CallbackContext, message=
             chatgpt_instance = openai_utils.ChatGPT(model=current_model)
             if config.enable_message_streaming:
                 if chat_mode != "internet_connected_assistant":
-                    if current_model != "gpt-4":
-                        gen = chatgpt_instance.send_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
-                    else:
-                        gen = chatgpt_instance.send_vision_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
+                    # Use regular message stream since voice messages don't have images
+                    gen = chatgpt_instance.send_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
                 else:
                     gen = chatgpt_instance.send_internetmessage(_message, dialog_messages=dialog_messages, chat_mode="internet_connected_assistant")
             else:
@@ -504,10 +567,24 @@ async def voicemessage_handle(update: Update, context: CallbackContext, message=
             prev_answer = ""
             async for gen_item in gen:
                 status, answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = gen_item
-                answer = answer[:4096]  # telegram message limit
-                # update only when 100 new symbols are ready
-                if abs(len(answer) - len(prev_answer)) < 100 and status != "finished":
+                answer = smart_truncate_message(answer)  # smart telegram message limit
+                
+                # Smart update logic: update more frequently as we approach the limit
+                current_length = len(answer)
+                length_diff = abs(current_length - len(prev_answer))
+                
+                # Update thresholds based on message length
+                if current_length > 3500:  # Close to limit - update every 50 chars
+                    update_threshold = 50
+                elif current_length > 2000:  # Medium length - update every 75 chars  
+                    update_threshold = 75
+                else:  # Short messages - update every 100 chars
+                    update_threshold = 100
+                
+                # Always update when finished or threshold met
+                if length_diff < update_threshold and status != "finished":
                     continue
+                    
                 try:
                     await context.bot.edit_message_text(answer, chat_id=placeholder_message.chat_id, message_id=placeholder_message.message_id, parse_mode=parse_mode)
                 except telegram.error.BadRequest as e:
@@ -534,7 +611,9 @@ async def voicemessage_handle(update: Update, context: CallbackContext, message=
 
         except Exception as e:
             error_text = f"Something went wrong during completion. Reason: {e}"
+            print(traceback.format_exc())
             logger.error(error_text)
+            logger.error(traceback.format_exc())
             await update.message.reply_text(error_text)
             return None
 
@@ -638,8 +717,9 @@ async def generate_image_handle(update: Update, context: CallbackContext, messag
 
     try:
         image_urls = await openai_utils.generate_images(message, n_images=config.return_n_generated_images)
-    except openai.error.InvalidRequestError as e:
-        if str(e).startswith("Your request was rejected as a result of our safety system"):
+    except Exception as e:
+        # Check if it's a content policy violation
+        if "safety system" in str(e).lower() or "content policy" in str(e).lower() or "rejected" in str(e).lower():
             text = "🥲 Your request <b>doesn't comply</b> with OpenAI's usage policies.\nWhat did you write there, huh?"
             await update.message.reply_text(text, parse_mode=ParseMode.HTML)
             return
@@ -651,7 +731,127 @@ async def generate_image_handle(update: Update, context: CallbackContext, messag
 
     for i, image_url in enumerate(image_urls):
         await update.message.chat.send_action(action="upload_photo")
-        await update.message.reply_photo(image_url, parse_mode=ParseMode.HTML)
+        # Handle data URLs for Telegram compatibility
+        if image_url.startswith("data:image"):
+            # Extract base64 data from data URL
+            base64_data = image_url.split(',')[1]
+            image_bytes = base64.b64decode(base64_data)
+            image_buffer = BytesIO(image_bytes)
+            image_buffer.name = "dall_e_3.png"
+            await update.message.reply_photo(image_buffer, parse_mode=ParseMode.HTML)
+        else:
+            # Regular URL
+            await update.message.reply_photo(image_url, parse_mode=ParseMode.HTML)
+
+async def generate_image_gpt_pro_handle(update: Update, context: CallbackContext, message=None):
+    """Handle image generation and editing with GPT-Image-1 model"""
+    await register_user_if_not_exists(update, context, update.message.from_user)
+    if await is_previous_message_not_answered_yet(update, context): return
+
+    user_id = update.message.from_user.id
+    db.set_user_attribute(user_id, "last_interaction", datetime.now())
+
+    await update.message.chat.send_action(action="upload_photo")
+
+    # Check if user sent an image for editing
+    has_image = (update.message.photo is not None and len(update.message.photo) > 0) or update.message.effective_attachment
+    message_text = message or update.message.text or update.message.caption
+
+    if not message_text:
+        text = "🎨 Please provide a text prompt for image generation or editing!\n\n"
+        text += "📝 <b>Examples:</b>\n"
+        text += "• <i>A futuristic cityscape at sunset with flying cars</i>\n"
+        text += "• <i>Portrait of a wise owl wearing glasses, digital art style</i>\n"
+        text += "• Send an image with caption: <i>Remove the background and make it transparent</i>"
+        await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+        return
+
+    try:
+        if has_image:
+            # Image editing mode
+            await update.message.reply_text("🔧 <b>Image editing mode detected!</b> Processing your image...", parse_mode=ParseMode.HTML)
+            
+            # Get the image
+            if update.message.photo:
+                photo = update.message.photo[-1]  # Get highest resolution
+            else:
+                photo = update.message.effective_attachment
+            
+            photo_file = await context.bot.get_file(photo.file_id)
+            
+            # Download image to memory
+            import io
+            image_buffer = io.BytesIO()
+            await photo_file.download_to_memory(image_buffer)
+            image_buffer.seek(0)
+            
+            # Use GPT-Image-1 for editing
+            image_urls = await openai_utils.edit_image_gpt_image_1(
+                image=image_buffer,
+                prompt=message_text,
+                n_images=1,
+                size="1024x1024"
+            )
+            
+            success_text = f"✨ <b>Image edited successfully!</b>\n📝 Prompt: <i>{message_text}</i>"
+            await update.message.reply_text(success_text, parse_mode=ParseMode.HTML)
+            
+        else:
+            # Image generation mode
+            await update.message.reply_text("🎨 <b>Generating image with GPT-Image-1...</b>", parse_mode=ParseMode.HTML)
+            
+            # Use GPT-Image-1 for generation with enhanced parameters
+            image_urls = await openai_utils.generate_images_gpt_image_1(
+                prompt=message_text,
+                n_images=config.return_n_generated_images,
+                size="1024x1024"
+            )
+            
+            success_text = f"✨ <b>Image generated successfully!</b>\n📝 Prompt: <i>{message_text}</i>"
+            await update.message.reply_text(success_text, parse_mode=ParseMode.HTML)
+
+    except Exception as e:
+        # Check if it's a content policy violation
+        if "safety system" in str(e).lower() or "content policy" in str(e).lower() or "rejected" in str(e).lower():
+            text = "🚫 Your request <b>doesn't comply</b> with OpenAI's usage policies.\n"
+            text += "Please try a different prompt that follows content guidelines."
+            await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+            return
+        # Check if GPT-Image-1 is not available
+        elif "not available" in str(e).lower() or "not found" in str(e).lower():
+            text = "⚠️ GPT-Image-1 model is currently not available.\n"
+            text += "Please try again later or switch to the regular Artist mode."
+            await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+            return
+        else:
+            # Log the error and show a generic message
+            logger.error(f"GPT-Image-1 error: {e}")
+            text = f"❌ An error occurred while processing your request: {str(e)[:100]}..."
+            await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+            return
+
+    # Update usage statistics
+    db.set_user_attribute(user_id, "n_gpt_image_1_images", config.return_n_generated_images + db.get_user_attribute(user_id, "n_gpt_image_1_images"))
+
+    # Send the generated/edited images
+    for i, image_url in enumerate(image_urls):
+        await update.message.chat.send_action(action="upload_photo")
+        if has_image:
+            caption = f"🔧 Edited with GPT-Image-1 ({i+1}/{len(image_urls)})"
+        else:
+            caption = f"🎨 Created with GPT-Image-1 ({i+1}/{len(image_urls)})"
+        
+        # Convert data URL to BytesIO for Telegram compatibility
+        if image_url.startswith("data:image"):
+            # Extract base64 data from data URL
+            base64_data = image_url.split(',')[1]
+            image_bytes = base64.b64decode(base64_data)
+            image_buffer = BytesIO(image_bytes)
+            image_buffer.name = "gpt_image_1.png"
+            await update.message.reply_photo(image_buffer, caption=caption, parse_mode=ParseMode.HTML)
+        else:
+            # Regular URL
+            await update.message.reply_photo(image_url, caption=caption, parse_mode=ParseMode.HTML)
 
 async def new_dialog_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
@@ -828,6 +1028,7 @@ async def show_balance_handle(update: Update, context: CallbackContext):
 
     n_used_tokens_dict = db.get_user_attribute(user_id, "n_used_tokens")
     n_generated_images = db.get_user_attribute(user_id, "n_generated_images")
+    n_gpt_image_1_images = db.get_user_attribute(user_id, "n_gpt_image_1_images")
     n_transcribed_seconds = db.get_user_attribute(user_id, "n_transcribed_seconds")
 
     details_text = "🏷️ Details:\n"
@@ -847,6 +1048,13 @@ async def show_balance_handle(update: Update, context: CallbackContext):
         details_text += f"- DALL·E 3 (image generation): <b>{image_generation_n_spent_dollars:.03f}$</b> / <b>{n_generated_images} generated images</b>\n"
 
     total_n_spent_dollars += image_generation_n_spent_dollars
+
+    # GPT-Image-1 generation/editing
+    gpt_image_1_n_spent_dollars = config.models["info"]["gpt-image-1"]["price_per_1_image"] * n_gpt_image_1_images
+    if n_gpt_image_1_images != 0:
+        details_text += f"- GPT-Image-1 (image generation/editing): <b>{gpt_image_1_n_spent_dollars:.03f}$</b> / <b>{n_gpt_image_1_images} generated/edited images</b>\n"
+
+    total_n_spent_dollars += gpt_image_1_n_spent_dollars
 
     # voice recognition
     voice_recognition_n_spent_dollars = config.models["info"]["whisper"]["price_per_1_min"] * (n_transcribed_seconds / 60)

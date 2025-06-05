@@ -1,114 +1,73 @@
-available_text_models: ["gpt-4", "gpt-4-turbo", "gpt-3p5-turbo-16k", "cohere", "llama3-70b-8192", "mixtral-8x7b-32768", "gemini-1.5-pro-latest", "ollama"]
+available_text_models: ["gpt-4o", "o4-mini", "model-router", "gemini-2.5-flash-preview-05-20"]
 
 info:
 
-  gpt-4:
+  gpt-4o:
     type: chat_completion
     name: G4o
-    description: GPT-4o is the <b>smartest</b> and most advanced multimodal model in the world. It is 2x faster and 50% cheaper than GPT-4-Turbo. Best choice for <b>complex</b> intellectual tasks.
+    description: gpt-4o offers a shift in how AI models interact with multimodal inputs. By seamlessly combining text, images, and audio, gpt-4o provides a richer, more engaging user experience. Matching the intelligence of gpt-4o turbo, it is remarkably more efficient, delivering text at twice the speed and at half the cost. Additionally, GPT-4o exhibits the highest vision performance and excels in non-English languages compared to previous OpenAI models. gpt-4o is engineered for speed and efficiency. Its advanced ability to handle complex queries with minimal resources can translate into cost savings and performance.
 
-    price_per_1000_input_tokens: 0.03
-    price_per_1000_output_tokens: 0.06
+    price_per_1000_input_tokens: 0.005  # Corrected (was 0.03)
+    price_per_1000_output_tokens: 0.015 # Corrected (was 0.06)
 
     scores:
-      Smart: 5
+      Smart: 4
       Fast: 4
       Cheap: 4
 
-  gpt-4-turbo:
+  o4-mini:
     type: chat_completion
-    name: G4T
-    description: GPT-4-Turbo is GPT-4 Turbo model. It's a bit slower and more expensive than ChatGPT, but it's the best choice for <b>complex</b> tasks that require both text and image processing.
+    name: o4-mini
+    description: o4-mini includes significant improvements on quality and safety while supporting the existing features of o3-mini and delivering comparable or better performance through its integration and support of the newest APIs and reasoning features. The most efficient reasoning model in the o model series, well suited for agentic solutions.
 
-    price_per_1000_input_tokens: 0.01
-    price_per_1000_output_tokens: 0.03
+    price_per_1000_input_tokens: 0.0011 # Corrected (was 0.01)
+    price_per_1000_output_tokens: 0.0044 # Corrected (was 0.03)
 
     scores:
       smart: 5
       fast: 2
       cheap: 3
       
-  gpt-3p5-turbo-16k:
+  model-router:
     type: chat_completion
-    name: G35T
-    description: ChatGPT is that well-known model. It's <b>fast</b> and <b>cheap</b>. Ideal for everyday tasks. If there are some tasks it can't handle, try the <b>GPT-4</b>.
+    name: model-router
+    description: Model Router dynamically selects the optimal large language model(LLM) for a specific query or task in real time. By evaluating factors like query complexity, cost, and performance, it efficiently routes requests to the most suitable model, ensuring high quality results while minimizing costs. In our tests comparing use of Model Router versus use of GPT-4.1 only, we saw up-to 60% cost savings with similar accuracy.
 
-    price_per_1000_input_tokens: 0.003
-    price_per_1000_output_tokens: 0.004
+    price_per_1000_input_tokens: 0.003  # Unverified - This seems to be a placeholder or specific vendor pricing. Standard "model-router" itself from major providers may not have a direct per-token cost for routing, but rather for the underlying models used.
+    price_per_1000_output_tokens: 0.004 # Unverified - See above.
 
     scores:
       Smart: 3
       Fast: 4
       Cheap: 5
-  
-  cohere:
-    type: completion
-    name: Co
-    description: Cohere is a chat completions model from Cohere.ai called Command R Plus. With an author of the <b>Attention is All You Need</b> paper as one of its co-founders, Cohere's LLM is built with a focus on enterprise. Products based on its LLM include semantic search, embeddings, text generation, summarization, and classification.
 
-    price_per_1000_input_tokens: 0.02
-    price_per_1000_output_tokens: 0.02
-
-    scores:
-      Smart: 3
-      Fast: 2
-      Cheap: 3
-
-  llama3-70b-8192:
-    type: chat_completion
-    name: GQL
-    description: Groq's LLAMA-70B instantiation. Groq is on a mission to set the standard for GenAI inference speed, helping real-time AI applications come to life today. The LPU is designed to overcome the two LLM bottlenecks- compute density and memory bandwidth. An LPU has greater compute capacity than a GPU and CPU in regards to LLMs. This reduces the amount of time per word calculated, allowing sequences of text to be generated much faster.
-
-    price_per_1000_input_tokens: 0.002
-    price_per_1000_output_tokens: 0.002
-
-    scores:
-      Smart: 3
-      Fast: 5
-      Cheap: 2
-
-  mixtral-8x7b-32768:
-    type: chat_completion
-    name: GQM
-    description: Groq's Mixtral-7B instantiation. Groq is on a mission to set the standard for GenAI inference speed, helping real-time AI applications come to life today. The LPU is designed to overcome the two LLM bottlenecks- compute density and memory bandwidth. An LPU has greater compute capacity than a GPU and CPU in regards to LLMs. This reduces the amount of time per word calculated, allowing sequences of text to be generated much faster.
-
-    price_per_1000_input_tokens: 0.002
-    price_per_1000_output_tokens: 0.002
-
-    scores:
-      Smart: 2
-      Fast: 5
-      Cheap: 2
-
-  gemini-1.5-pro-latest:
+  gemini-2.5-flash-preview-05-20:
     type: chat_completion
     name: Gem
-    description: Gemini (Gemini Pro) is Google's LLM chat product, based on Transformers which succeeded PaLM. This is the latest and greatest model from Google.
+    description: Gemini 2.5 Flash is a powerful multimodal model that excels in reasoning, coding, and complex tasks. It supports text, images, and audio inputs, making it versatile for various applications. With its advanced capabilities, Gemini 2.5 Flash is designed to handle intricate queries and deliver high-quality responses across multiple modalities.
 
-    price_per_1000_input_tokens: 0.02
-    price_per_1000_output_tokens: 0.02
+    price_per_1000_input_tokens: 0.00015 # Corrected (was 0.02) - for non-thinking variant
+    price_per_1000_output_tokens: 0.0006  # Corrected (was 0.02) - for non-thinking variant
 
     scores:
       Smart: 3
-      Fast: 2
-      Cheap: 3
-
-  ollama:
-    type: chat_completion
-    name: Mix
-    description: Mixtral 8x7B, a high-quality sparse mixture of experts model (SMoE) with open weights. Licensed under Apache 2.0. Mixtral outperforms Llama 2 70B on most benchmarks with 6x faster inference. It is the strongest open-weight model with a permissive license and the best model overall regarding cost/performance trade-offs. In particular, it matches or outperforms GPT3.5 on most standard benchmarks.
-
-    price_per_1000_input_tokens: 0.002
-    price_per_1000_output_tokens: 0.002
-
-    scores:
-      Smart: 2
-      Fast: 3
-      Cheap: 4
+      Fast: 5
+      Cheap: 5
 
   dall-e-3:
-     type: image
-     price_per_1_image: 0.018  # 512x512
+    type: image
+    price_per_1_image: 0.040  # Corrected (was 0.018 for 512x512, which is DALL-E 2 pricing). This is for standard 1024x1024.
+
+  gpt-image-1:
+    type: image
+    name: GPT-Image-1
+    description: GPT-Image-1 is OpenAI's latest and most advanced image generation and editing model. It offers exceptional image quality, improved prompt adherence, and advanced editing capabilities including inpainting, outpainting, and image-to-image transformations. Supports both generation and editing workflows with superior understanding of complex prompts and artistic styles.
+    price_per_1_image: 0.17  # Estimated pricing for GPT-Image-1 (likely higher than DALL-E 3 due to advanced capabilities)
+
+    scores:
+      Smart: 5
+      Fast: 1
+      Cheap: 1
 
   whisper:
     type: audio

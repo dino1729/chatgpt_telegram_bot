@@ -21,6 +21,8 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - mongo
+    volumes:
+      - ./:/app
 
   mongo_express:
     container_name: telegram-mongo-express

@@ -3,68 +3,19 @@ Refactored OpenAI Utils - Master module that imports and exposes all functionali
 from helper function modules for backward compatibility and clean API access.
 """
 
-# Import all the helper modules with defensive importing
-# Try relative imports first (when used as package), fall back to absolute imports
-try:
-    from .helper_functions.config_manager import ConfigManager, get_config_manager
-except ImportError:
-    from helper_functions.config_manager import ConfigManager, get_config_manager
-
-try:
-    try:
-        from .helper_functions.chatgpt_refactored import ChatGPT
-    except ImportError:
-        from helper_functions.chatgpt_refactored import ChatGPT
-except ImportError as e:
-    print(f"Warning: ChatGPT class not available: {e}")
-    ChatGPT = None
-
-try:
-    try:
-        from .helper_functions.audio_utils import (
-            transcribe_audio, 
-            translate_text, 
-            text_to_speech, 
-            local_text_to_speech
-        )
-    except ImportError:
-        from helper_functions.audio_utils import (
-            transcribe_audio, 
-            translate_text, 
-            text_to_speech, 
-            local_text_to_speech
-        )
-except ImportError as e:
-    print(f"Warning: Audio utilities not available: {e}")
-    transcribe_audio = None
-    translate_text = None
-    text_to_speech = None
-    local_text_to_speech = None
-
-try:
-    try:
-        from .helper_functions.image_utils import (
-            generate_images, 
-            generate_images_gpt_image_1,
-            edit_image_gpt_image_1,
-            is_content_acceptable
-        )
-    except ImportError:
-        from helper_functions.image_utils import (
-            generate_images, 
-            generate_images_gpt_image_1,
-            edit_image_gpt_image_1,
-            is_content_acceptable
-        )
-except ImportError as e:
-    print(f"Warning: Image utilities not available: {e}")
-    generate_images = None
-    generate_images_gpt_image_1 = None
-    edit_image_gpt_image_1 = None
-    is_content_acceptable = None
-
-# Create global config manager instance
-config_manager = get_config_manager()
+# Import all the helper modules
+from .helper_functions.config_manager import get_config_manager
+from .helper_functions.chatgpt_refactored import ChatGPT
+from .helper_functions.audio_utils import (
+    transcribe_audio, 
+    translate_text, 
+    text_to_speech, 
+    local_text_to_speech
+)
+from .helper_functions.image_utils import (
+    generate_images, 
+    is_content_acceptable
+)
 
 # Export the main classes and functions for backward compatibility
 __all__ = [
@@ -74,11 +25,12 @@ __all__ = [
     'text_to_speech',
     'local_text_to_speech',
     'generate_images',
-    'generate_images_gpt_image_1',
-    'edit_image_gpt_image_1',
     'is_content_acceptable',
     'config_manager'
 ]
+
+# Create global config manager instance
+config_manager = get_config_manager()
 
 # Legacy imports for backward compatibility
 cm = config_manager
@@ -146,40 +98,28 @@ import asyncio
 
 def generate_images_sync(prompt, n_images=4):
     """Synchronous wrapper for generate_images"""
-    if generate_images is None:
-        raise RuntimeError("Image generation not available - missing dependencies")
     return asyncio.run(generate_images(prompt, n_images, config_manager))
 
 def is_content_acceptable_sync(prompt):
     """Synchronous wrapper for is_content_acceptable"""
-    if is_content_acceptable is None:
-        raise RuntimeError("Content moderation not available - missing dependencies")
     return asyncio.run(is_content_acceptable(prompt, config_manager))
 
 def transcribe_audio_sync(audio_file):
     """Synchronous wrapper for transcribe_audio"""
-    if transcribe_audio is None:
-        raise RuntimeError("Audio transcription not available - missing dependencies")
     return asyncio.run(transcribe_audio(audio_file, config_manager))
 
 def translate_text_sync(text, target_language):
     """Synchronous wrapper for translate_text"""
-    if translate_text is None:
-        raise RuntimeError("Text translation not available - missing dependencies")
     return asyncio.run(translate_text(text, target_language, config_manager))
 
 def text_to_speech_sync(text, output_path, language):
     """Synchronous wrapper for text_to_speech"""
-    if text_to_speech is None:
-        raise RuntimeError("Text-to-speech not available - missing dependencies")
     return asyncio.run(text_to_speech(text, output_path, language, config_manager))
 
 def local_text_to_speech_sync(text, output_path, model_name):
     """Synchronous wrapper for local_text_to_speech"""
-    if local_text_to_speech is None:
-        raise RuntimeError("Local text-to-speech not available - missing dependencies")
     return asyncio.run(local_text_to_speech(text, output_path, model_name, config_manager))
 
 # Note: This is the new refactored openai_utils.py
-# The original file has been backed up as openai_utils_backup.py
+# The original file will be backed up and this will replace it
 print("Loaded refactored OpenAI Utils with modular helper functions")
