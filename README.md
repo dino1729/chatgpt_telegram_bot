@@ -49,6 +49,6 @@ Adding support for voice conversation with LLMs! Just talk to the LLMs like you 
 
 4. 🔥 And now **run**:
     ```bash
-    docker compose --env-file config/config.env up --build
+    docker compose up --build
     ```
 
