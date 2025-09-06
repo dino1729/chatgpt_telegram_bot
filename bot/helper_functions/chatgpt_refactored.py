@@ -11,12 +11,16 @@ from .model_providers import ModelProviders
 from .search_utils import SearchUtils
 
 class ChatGPT:
-    """Main ChatGPT class with modular helper functions"""
-    
-    def __init__(self, model="gpt-4o"):
+    """Main ChatGPT class with modular helper functions.
+
+    Supported models: gpt-5-chat, gpt-5, model-router, gemini-2.5-flash.
+    (All legacy references to gpt-4o / gpt-3p5-turbo-16k removed.)
+    """
+
+    def __init__(self, model="gpt-5-chat"):
         # Only models defined in config/models.yml are supported
-        assert model in {"gpt-4o", "o4-mini", "model-router", "gemini-2.5-flash-preview-05-20"}, f"Unknown model: {model}"
-        
+        assert model in {"gpt-5-chat", "gpt-5", "model-router", "gemini-2.5-flash"}, f"Unknown model: {model}"
+
         self.model = model
         self.config = get_config_manager()
         self.token_counter = TokenCounter()
@@ -26,34 +30,31 @@ class ChatGPT:
         
     def _get_token_count_model(self):
         """Get the appropriate model name for token counting"""
-        if self.model == "gpt-4o":
-            return "gpt-4o"
-        elif self.model == "gpt-3p5-turbo-16k":
-            return "gpt-3.5-turbo-16k"
+        # Map all internal token counting to gpt-5-chat profile (fallback handled in TokenCounter)
+        if self.model in {"gpt-5-chat", "gpt-5", "model-router"}:
+            return "gpt-5-chat"
         return self.model
 
     async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
         """Send a message to the AI model"""
         if chat_mode not in config.chat_modes.keys():
             raise ValueError(f"Chat mode {chat_mode} is not supported")
-        
         token_count_model = self._get_token_count_model()
         n_dialog_messages_before = len(dialog_messages)
         answer = None
         completion_options = self.config.get_openai_completion_options()
-        
+
         while answer is None:
             try:
                 messages = self.message_formatter.generate_prompt_messages(
                     message, dialog_messages, chat_mode
                 )
-                
-                # Route to provider based on supported models
-                if self.model in {"gpt-4o", "o4-mini", "model-router"}:
+
+                if self.model in {"gpt-5-chat", "gpt-5", "model-router"}:
                     answer = await self.model_providers.send_azure_openai_message(
                         self.model, messages, completion_options
                     )
-                elif self.model == "gemini-2.5-flash-preview-05-20":
+                elif self.model == "gemini-2.5-flash":
                     answer = await self.model_providers.send_gemini_message(messages)
                 else:
                     raise ValueError(f"Unsupported model: {self.model}")
@@ -62,13 +63,11 @@ class ChatGPT:
                 n_input_tokens, n_output_tokens = self.token_counter.count_tokens_from_messages(
                     messages, answer, model=token_count_model
                 )
-                
-            except Exception as e:
+            except Exception as e:  # noqa: PERF203 (loop control acceptable here)
                 if len(dialog_messages) == 0:
                     raise ValueError(
                         "Dialog messages is reduced to zero, but still has too many tokens to make completion"
                     ) from e
-                # Forget first message in dialog_messages
                 dialog_messages = dialog_messages[1:]
 
         n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
@@ -78,19 +77,18 @@ class ChatGPT:
         """Send a streaming message to the AI model"""
         if chat_mode not in config.chat_modes.keys():
             raise ValueError(f"Chat mode {chat_mode} is not supported")
-        
         token_count_model = self._get_token_count_model()
         n_dialog_messages_before = len(dialog_messages)
         answer = None
         completion_options = self.config.get_openai_completion_options()
-        
+
         while answer is None:
             try:
                 messages = self.message_formatter.generate_prompt_messages(
                     message, dialog_messages, chat_mode
                 )
-                
-                if self.model in {"gpt-4o", "o4-mini", "model-router"}:
+
+                if self.model in {"gpt-5-chat", "gpt-5", "model-router"}:
                     r_gen = await self.model_providers.send_azure_openai_stream(
                         self.model, messages, completion_options
                     )
@@ -105,9 +103,7 @@ class ChatGPT:
                                 )
                                 n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                                 yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
-                                
-                elif self.model == "gemini-2.5-flash-preview-05-20":
-                    # no streaming support for gemini, use non-stream fallback
+                elif self.model == "gemini-2.5-flash":
                     answer = await self.model_providers.send_gemini_message(messages)
                     n_input_tokens, n_output_tokens = self.token_counter.count_tokens_from_messages(
                         messages, answer, model=token_count_model
@@ -115,13 +111,10 @@ class ChatGPT:
                     n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
                     yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
                 else:
-                    # unsupported or end of Azure stream falls here
                     raise ValueError(f"Unsupported or unstreamable model: {self.model}")
-                    
-            except Exception as e:
+            except Exception as e:  # noqa: PERF203
                 if len(dialog_messages) == 0:
                     raise e
-                # Forget first message in dialog_messages
                 dialog_messages = dialog_messages[1:]
 
         yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
@@ -129,7 +122,7 @@ class ChatGPT:
     async def _send_non_streaming_message(self, messages, chat_mode):
         """Helper method for non-streaming models"""
         # Only fallback for gemini text model
-        if self.model == "gemini-2.5-flash-preview-05-20":
+        if self.model == "gemini-2.5-flash":
             return await self.model_providers.send_gemini_message(messages)
         raise ValueError(f"Unsupported model for non-streaming: {self.model}")
 
@@ -148,8 +141,8 @@ class ChatGPT:
             
         while answer is None:
             try:
-                # For vision tasks, use gpt-4o as fallback if current model doesn't support vision
-                vision_model = self.model if self.model in ["gpt-4o", "gemini-2.5-flash-preview-05-20"] else "gpt-4o"
+                # For vision tasks, use gpt-5-chat as fallback if current model doesn't support vision
+                vision_model = self.model if self.model in ["gpt-5-chat", "gemini-2.5-flash"] else "gpt-5-chat"
                 logging.info(f"Using vision model: {vision_model} for non-streaming (original model: {self.model})")
                 
                 messages = self.message_formatter.generate_vision_prompt_messages(
@@ -190,8 +183,8 @@ class ChatGPT:
             
         while answer is None:
             try:
-                # For vision tasks, use gpt-4o as fallback if current model doesn't support vision
-                vision_model = self.model if self.model in ["gpt-4o", "gemini-2.5-flash-preview-05-20"] else "gpt-4o"
+                # For vision tasks, use gpt-5-chat as fallback if current model doesn't support vision
+                vision_model = self.model if self.model in ["gpt-5-chat", "gemini-2.5-flash"] else "gpt-5-chat"
                 logging.info(f"Using vision model: {vision_model} (original model: {self.model})")
                 
                 messages = self.message_formatter.generate_vision_prompt_messages(
@@ -210,10 +203,12 @@ class ChatGPT:
                                 messages, answer, model=token_count_model
                             )
                             n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
-                            logging.debug(f"Yielding partial answer. Tokens: input={n_input_tokens}, output={n_output_tokens}, messages_removed={n_first_dialog_messages_removed}")
-                            yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
-                            n_first_dialog_messages_removed = n_dialog_messages_before - len(dialog_messages)
-                            logging.debug(f"Yielding partial answer. Tokens: input={n_input_tokens}, output={n_output_tokens}, messages_removed={n_first_dialog_messages_removed}")
+                            logging.debug(
+                                "Yielding partial answer. Tokens: input=%s, output=%s, messages_removed=%s",
+                                n_input_tokens,
+                                n_output_tokens,
+                                n_first_dialog_messages_removed,
+                            )
                             yield "not_finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
                     
             except Exception as e:
@@ -229,8 +224,7 @@ class ChatGPT:
         """Send an internet-connected message with search capabilities"""
         if chat_mode not in config.chat_modes.keys():
             raise ValueError(f"Chat mode {chat_mode} is not supported")
-        
-        token_count_model = self._get_token_count_model()
+    # Token counting model not required here; fixed model used below
         n_dialog_messages_before = len(dialog_messages)
         answer = None
         

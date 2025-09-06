@@ -19,7 +19,7 @@ def test_imports():
         print("✅ Successfully imported get_config_manager")
         
         # Test if config manager can be instantiated
-        config_manager = get_config_manager()
+        _ = get_config_manager()  # noqa: F841
         print("✅ Successfully created config_manager instance")
         
         # Test ChatGPT import
@@ -27,14 +27,13 @@ def test_imports():
         print("✅ Successfully imported ChatGPT class")
         
         # Test if ChatGPT can be instantiated (should not be None now)
-        chatgpt_instance = ChatGPT(model="gpt-3.5-turbo")
+        chatgpt_instance = ChatGPT(model="gpt-3.5-turbo")  # noqa: F841
         print("✅ Successfully created ChatGPT instance")
-        
-        if chatgpt_instance is not None:
+
+        if chatgpt_instance is not None:  # noqa: F841
             print("✅ ChatGPT instance is not None - import fix successful!")
         else:
             print("❌ ChatGPT instance is still None - import fix failed")
-            
         return True
         
     except Exception as e:

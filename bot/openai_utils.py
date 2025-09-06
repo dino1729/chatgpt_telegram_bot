@@ -1,14 +1,13 @@
-"""
-Refactored OpenAI Utils - Master module that imports and exposes all functionality
-from helper function modules for backward compatibility and clean API access.
-"""
+"""Refactored OpenAI Utils master module (backward compatibility layer)."""
+
+import asyncio  # Needed for sync wrappers (kept at top to satisfy style)
 
 # Import all the helper modules with defensive importing
 # Try relative imports first (when used as package), fall back to absolute imports
 try:
-    from .helper_functions.config_manager import ConfigManager, get_config_manager
+    from .helper_functions.config_manager import get_config_manager
 except ImportError:
-    from helper_functions.config_manager import ConfigManager, get_config_manager
+    from helper_functions.config_manager import get_config_manager
 
 try:
     try:
@@ -83,17 +82,15 @@ __all__ = [
 # Legacy imports for backward compatibility
 cm = config_manager
 
-# Expose configuration settings at module level for backward compatibility
-azure_api_key = cm.azure_api_key
-azure_api_base = cm.azure_api_base
-azure_embeddingapi_version = cm.azure_embeddingapi_version
-azure_chatapi_version = cm.azure_chatapi_version
-azure_gpt4_deploymentid = cm.azure_gpt4_deploymentid
-openai_gpt4_modelname = cm.openai_gpt4_modelname
-azure_gpt35_deploymentid = cm.azure_gpt35_deploymentid
-openai_gpt35_modelname = cm.openai_gpt35_modelname
-azure_embedding_deploymentid = cm.azure_embedding_deploymentid
-openai_embedding_modelname = cm.openai_embedding_modelname
+smart_llm_azure_deployment = cm.smart_llm_azure_deployment
+smart_llm_openai_model = cm.smart_llm_openai_model
+thinking_llm_azure_deployment = cm.thinking_llm_azure_deployment
+thinking_llm_openai_model = cm.thinking_llm_openai_model
+fast_llm_azure_deployment = cm.fast_llm_azure_deployment
+fast_llm_openai_model = cm.fast_llm_openai_model
+superfast_llm_azure_deployment = cm.superfast_llm_azure_deployment
+embedding_azure_deployment = cm.embedding_azure_deployment
+embedding_openai_model = cm.embedding_openai_model
 
 cohere_api_key = cm.cohere_api_key
 google_api_key = cm.google_api_key
@@ -142,7 +139,6 @@ VECTOR_FOLDER = cm.VECTOR_FOLDER
 OPENAI_COMPLETION_OPTIONS = cm.get_openai_completion_options()
 
 # Wrapper functions for async functions to maintain compatibility
-import asyncio
 
 def generate_images_sync(prompt, n_images=4):
     """Synchronous wrapper for generate_images"""

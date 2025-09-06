@@ -12,7 +12,7 @@ except ImportError:
     logging.warning("Azure OpenAI library not available")
 
 class ModelProviders:
-    """Providers for models: Azure OpenAI (gpt-4o, o4-mini, model-router) and Google Gemini"""
+    """Providers for models: Azure OpenAI (gpt-5-chat, gpt-5, model-router) and Google Gemini (gemini-2.5-flash)."""
     def __init__(self, config_manager):
         self.config = config_manager
 
@@ -29,7 +29,6 @@ class ModelProviders:
         # Retry logic with exponential backoff
         max_retries = getattr(self.config, 'max_api_retries', 1)
         backoff = getattr(self.config, 'api_retry_backoff', 1.0)
-        last_err = None
         for attempt in range(1, max_retries + 1):
             try:
                 client = self.get_azure_openai_client()
@@ -40,7 +39,6 @@ class ModelProviders:
                 )
                 return response.choices[0].message.content
             except Exception as e:
-                last_err = e
                 if attempt >= max_retries:
                     logging.error(f"Azure OpenAI message failed after {attempt} attempts: {e}")
                     raise
@@ -52,7 +50,6 @@ class ModelProviders:
         # Retry creation of streaming generator
         max_retries = getattr(self.config, 'max_api_retries', 1)
         backoff = getattr(self.config, 'api_retry_backoff', 1.0)
-        last_err = None
         for attempt in range(1, max_retries + 1):
             try:
                 client = self.get_azure_openai_client()
@@ -64,7 +61,6 @@ class ModelProviders:
                 )
                 return response
             except Exception as e:
-                last_err = e
                 if attempt >= max_retries:
                     logging.error(f"Azure OpenAI stream failed after {attempt} attempts: {e}")
                     raise
@@ -87,7 +83,7 @@ class ModelProviders:
             "top_k": 1,
         }
         return genai.GenerativeModel(
-            model_name="gemini-2.5-flash-preview-05-20",
+            model_name="gemini-2.5-flash",
             generation_config=generation_config
         )
 
@@ -95,14 +91,12 @@ class ModelProviders:
         # Retry logic for Gemini
         max_retries = getattr(self.config, 'max_api_retries', 1)
         backoff = getattr(self.config, 'api_retry_backoff', 1.0)
-        last_err = None
         for attempt in range(1, max_retries + 1):
             try:
                 gemini = self.configure_gemini()
                 response = await gemini.generate_content_async(str(messages).replace("'", '"'))
                 return response.text
             except Exception as e:
-                last_err = e
                 if attempt >= max_retries:
                     logging.error(f"Gemini message failed after {attempt} attempts: {e}")
                     raise

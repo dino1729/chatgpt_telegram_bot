@@ -66,7 +66,12 @@ class Database:
             "chat_mode": self.get_user_attribute(user_id, "current_chat_mode"),
             "start_time": datetime.now(),
             "model": self.get_user_attribute(user_id, "current_model"),
-            "messages": []
+            "messages": [],
+            # Frozen search context fields (used in internet_connected_assistant mode)
+            # Populated only after the first retrieval-search cycle.
+            "search_context": None,          # Consolidated text (summary + raw snippets truncated)
+            "search_query": None,            # Original user query that triggered the search
+            "search_timestamp": None         # Datetime stored as ISO string
         }
 
         # add new dialog
@@ -125,4 +130,26 @@ class Database:
         self.dialog_collection.update_one(
             {"_id": dialog_id, "user_id": user_id},
             {"$set": {"messages": dialog_messages}}
+        )
+
+    # -------- Frozen search context helpers ---------
+    def get_current_dialog_id(self, user_id: int):
+        return self.get_user_attribute(user_id, "current_dialog_id")
+
+    def get_dialog(self, user_id: int, dialog_id: Optional[str] = None):
+        if dialog_id is None:
+            dialog_id = self.get_current_dialog_id(user_id)
+        return self.dialog_collection.find_one({"_id": dialog_id, "user_id": user_id})
+
+    def set_dialog_attribute(self, user_id: int, key: str, value: Any, dialog_id: Optional[str] = None):
+        if dialog_id is None:
+            dialog_id = self.get_current_dialog_id(user_id)
+        self.dialog_collection.update_one({"_id": dialog_id, "user_id": user_id}, {"$set": {key: value}})
+
+    def clear_search_context(self, user_id: int, dialog_id: Optional[str] = None):
+        if dialog_id is None:
+            dialog_id = self.get_current_dialog_id(user_id)
+        self.dialog_collection.update_one(
+            {"_id": dialog_id, "user_id": user_id},
+            {"$set": {"search_context": None, "search_query": None, "search_timestamp": None}}
         )

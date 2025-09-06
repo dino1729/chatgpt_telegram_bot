@@ -1,18 +1,19 @@
-"""
-Unified image tool.
-• No args  ................ generate new image  (OpenAI Images.generate)
-• <image_path> ............ edit existing image (Azure OpenAI Images/edits curl)
-Core logic from gptimagegen.py & gptimageedit.py preserved.
-"""
+"""Unified image tool (generation & edit)."""
 
-DEBUG_LOG = False  # Set to True to enable debug logging
-
-import traceback, threading, json, subprocess, base64, time, os, sys, random # Restored imports
-from queue import Queue                # Restored import
+import traceback
+import threading
+import json
+import subprocess
+import base64
+import os
+import sys
+import random
+from queue import Queue
 import tempfile
 from PIL import Image
-from openai import OpenAI, AzureOpenAI # Ensure AzureOpenAI is imported
-import os # Ensure os is imported for path manipulation
+from openai import OpenAI
+
+DEBUG_LOG = False  # Set to True to enable debug logging
 
 # -------------- Detect mode --------------
 edit_mode = len(sys.argv) > 1
@@ -23,15 +24,19 @@ if edit_mode and not os.path.isfile(image_path):
 
 # -------------- Shared helpers --------------
 def _mask(secret: str, show: int = 4) -> str:
-    if not secret: return "None"
-    if len(secret) <= show * 2: return "*" * len(secret)
-    return f"{secret[:show]}{'*'*(len(secret)-show*2)}{secret[-show:]}"
+    if not secret:
+        return "None"
+    if len(secret) <= show * 2:
+        return "*" * len(secret)
+    masked_middle = "*" * (len(secret) - show * 2)
+    return f"{secret[:show]}{masked_middle}{secret[-show:]}"
 
 def debug_print(label, value, pretty=False):
     if pretty and isinstance(value, dict):
-        print(f"[DEBUG] {label}:"); print(json.dumps(value, indent=2))
-    else:
-        print(f"[DEBUG] {label}: {value}")
+        print(f"[DEBUG] {label}:")
+        print(json.dumps(value, indent=2))
+        return
+    print(f"[DEBUG] {label}: {value}")
 
 def _ensure_png(path: str) -> str:
     """
@@ -50,7 +55,7 @@ def prompt_enhancer(original_prompt: str, client) -> str:
     if DEBUG_LOG:
         print(f"[DEBUG] Entered prompt_enhancer with original_prompt: {original_prompt}")
         print(f"[DEBUG] Client type: {type(client)}")
-    """Uses GPT-4o to enhance the user's prompt for image generation."""
+    """Uses gpt-5-chat to enhance the user's prompt for image generation."""
     if DEBUG_LOG:
         print(f"[Enhancer] Original prompt: {original_prompt}")
     system_message = """You are an expert prompt engineer specializing in crafting detailed and effective prompts for AI image generation models. Enhance the user's input prompt to be more descriptive, vivid, and specific, maximizing the potential for a high-quality, relevant image. Consider adding details about style, composition, lighting, mood, and specific objects or characters mentioned. Keep the core subject matter intact. Respond only with the enhanced prompt, no preamble.
@@ -73,7 +78,7 @@ def prompt_enhancer(original_prompt: str, client) -> str:
         if DEBUG_LOG:
             print("[DEBUG] Sending request to client.chat.completions.create")
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-5-chat",
             messages=[
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": original_prompt}
@@ -103,7 +108,7 @@ def prompt_enhancer(original_prompt: str, client) -> str:
 
 # NEW Function to generate a surprising prompt
 def generate_surprise_prompt(client) -> str:
-    """Uses GPT-4o to generate a surprising and creative image prompt."""
+    """Uses gpt-5-chat to generate a surprising and creative image prompt."""
     if DEBUG_LOG:
         print("[DEBUG] Entered generate_surprise_prompt")
         print(f"[DEBUG] Client type: {type(client)}")
@@ -112,7 +117,7 @@ def generate_surprise_prompt(client) -> str:
         if DEBUG_LOG:
             print("[DEBUG] Sending request to client.chat.completions.create for surprise prompt")
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-5-chat",
             messages=[
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": "Generate a surprising image prompt."}
@@ -194,7 +199,7 @@ def spawn_funny_thread(mode: str, prompt: str, *, client=None,
             turn = history + [{"role": "system", "content": _persona(speaker)}]
             try:
                 chat = local_client.chat.completions.create(
-                    model="gpt-4o",
+                    model="gpt-5-chat",
                     messages=turn,
                     max_tokens=100,
                     temperature=0.75
@@ -231,7 +236,6 @@ os.makedirs(DATA_DIR, exist_ok=True) # Ensure the data directory exists
 # ------------------ GENERATE FLOW ------------------
 # Add size parameter with default
 def run_generate(prompt: str | None = None, size: str = "1024x1024") -> str:
-    from openai import OpenAI
     api_key  = os.getenv("OPENAI_API_KEY")
     base_url = os.getenv("OPENAI_API_BASE")
     client   = OpenAI(api_key=api_key, base_url=base_url)
@@ -247,9 +251,8 @@ def run_generate(prompt: str | None = None, size: str = "1024x1024") -> str:
 
     out_path = os.path.join(DATA_DIR, "output_gen.png") # Define out_path inside DATA_DIR
 
-    try:
+    try:  # image generation
         # print("Generating image... (this may take a while)")
-        t0 = time.time()
         # Use the provided prompt directly and the size parameter
         img = client.images.generate(model="gpt-image-1", prompt=prompt, n=1, size=size) # Pass size here
         # print(f"Image generation completed in {time.time()-t0:.2f}s")
@@ -274,7 +277,6 @@ def run_generate(prompt: str | None = None, size: str = "1024x1024") -> str:
 def run_edit(image_path: str, prompt: str | None = None, size: str = "1024x1024") -> str:
     # If AzureOpenAI was removed previously and is needed for the funny thread, ensure it's imported within spawn_funny_thread or globally.
     # Ensure AzureOpenAI is imported for potential enhancement use
-    from openai import AzureOpenAI
 
     azure_api_key   = os.getenv("AZURE_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
     azure_endpoint  = os.getenv("AZURE_OPENAI_ENDPOINT") or os.getenv("OPENAI_API_BASE")
@@ -317,7 +319,7 @@ def run_edit(image_path: str, prompt: str | None = None, size: str = "1024x1024"
             "-F",f"size={size}"
         ]
         # print("Editing image via Azure OpenAI... (this may take a while)")
-        t0=time.time()
+    # timing removed (unused)
         proc=subprocess.run(curl_cmd,capture_output=True,text=True, check=True) # Added check=True
         try:
             resp = json.loads(proc.stdout)
@@ -332,7 +334,7 @@ def run_edit(image_path: str, prompt: str | None = None, size: str = "1024x1024"
         with open(out_path,"wb") as f:
             f.write(base64.b64decode(b64))
         # print(f"Saved edited image as {out_path}")
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
         # print(f"Curl command failed with return code {e.returncode}")
         # print("Stderr:", e.stderr)
         # Re-raise or handle as appropriate, finally block will still run
@@ -361,7 +363,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         # print("\nInterrupted by user.")
         sys.exit(130)
-    except Exception as e:
+    except Exception:
         # print("ERROR:",e)
         # traceback.print_exc()
         sys.exit(1)

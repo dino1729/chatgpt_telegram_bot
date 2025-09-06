@@ -6,12 +6,19 @@ azure_api_base: ""
 azure_chatapi_version: ""
 azure_embeddingapi_version: ""
 
-azure_gpt4_deploymentid: ""
-openai_gpt4_modelname: ""
-azure_gpt35_deploymentid: ""
-openai_gpt35_modelname: ""
-azure_embedding_deploymentid: ""
-openai_embedding_modelname: ""
+###############################################
+# Generic LLM role mappings (replaces gpt4/gpt35 specific names)
+# Fill in only what you use.
+###############################################
+smart_llm_azure_deployment: ""      # ex: gpt-4 or gpt-4o
+smart_llm_openai_model: ""          # ex: gpt-4o-2024-05-13
+thinking_llm_azure_deployment: ""   # ex: gpt-4.1
+thinking_llm_openai_model: ""       # ex: gpt-4.1
+fast_llm_azure_deployment: ""       # ex: gpt-4o-mini
+fast_llm_openai_model: ""           # ex: gpt-4o-mini-2024-07-18
+superfast_llm_azure_deployment: ""  # ex: gpt-5-nano (ultra fast)
+embedding_azure_deployment: ""      # ex: text-embedding-3-small
+embedding_openai_model: ""          # ex: text-embedding-3-small
 
 ollama_api_key: ""
 ollama_api_base: ""
@@ -21,6 +28,10 @@ rvctts_api_base: ""
 # Bing Search
 bing_api_key: ""
 bing_endpoint: ""
+
+# Firecrawl self-hosted search
+firecrawl_base_url: "http://localhost:3002"
+firecrawl_api_key: "fc-YOUR_API_KEY"
 
 # Gemini
 google_api_key: ""

@@ -18,12 +18,18 @@ azure_api_key = config_yaml["azure_api_key"]
 azure_chatapi_version = config_yaml["azure_chatapi_version"]
 azure_embeddingapi_version = config_yaml["azure_embeddingapi_version"]
 
-azure_gpt4_deploymentid = config_yaml["azure_gpt4_deploymentid"]
-openai_gpt4_modelname = config_yaml["openai_gpt4_modelname"]
-azure_gpt35_deploymentid = config_yaml["azure_gpt35_deploymentid"]
-openai_gpt35_modelname = config_yaml["openai_gpt35_modelname"]
-azure_embedding_deploymentid = config_yaml["azure_embedding_deploymentid"]
-openai_embedding_modelname = config_yaml["openai_embedding_modelname"]
+# Generic LLM identifiers (new)
+smart_llm_azure_deployment = config_yaml.get("smart_llm_azure_deployment")
+smart_llm_openai_model = config_yaml.get("smart_llm_openai_model")
+thinking_llm_azure_deployment = config_yaml.get("thinking_llm_azure_deployment")
+thinking_llm_openai_model = config_yaml.get("thinking_llm_openai_model")
+fast_llm_azure_deployment = config_yaml.get("fast_llm_azure_deployment")
+fast_llm_openai_model = config_yaml.get("fast_llm_openai_model")
+superfast_llm_azure_deployment = config_yaml.get("superfast_llm_azure_deployment")
+embedding_azure_deployment = config_yaml.get("embedding_azure_deployment")
+embedding_openai_model = config_yaml.get("embedding_openai_model")
+
+# Backward compatibility aliases (old variable names still expected elsewhere)
 
 # OpenAI direct API
 openai_api_key = config_yaml["openai_api_key"]
@@ -42,6 +48,10 @@ groq_api_key = config_yaml["groq_api_key"]
 bing_api_key = config_yaml["bing_api_key"]
 bing_endpoint = config_yaml["bing_endpoint"] + "/v7.0/search"
 bing_news_endpoint = config_yaml["bing_endpoint"] + "/v7.0/news/search"
+
+# Firecrawl (self-hosted) search service
+firecrawl_base_url = config_yaml.get("firecrawl_base_url", "http://10.0.0.107:3002")
+firecrawl_api_key = config_yaml.get("firecrawl_api_key", "fc-YOUR_API_KEY")
 
 azurespeechkey = config_yaml["azurespeechkey"]
 azurespeechregion = config_yaml["azurespeechregion"]

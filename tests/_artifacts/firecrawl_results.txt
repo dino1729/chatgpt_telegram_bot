@@ -1,0 +1,75 @@
+
+===== 2025-09-05T23:09:48.970597Z Query: 'openai' =====
+{"url": "https://openai.com/", "title": "OpenAI", "description": "We believe our research will eventually lead to artificial general intelligence, a system that can solve human-level problems. Building safe and beneficial�..."}
+{"url": "https://en.wikipedia.org/wiki/OpenAI", "title": "OpenAI - Wikipedia", "description": "OpenAI, Inc. is an American artificial intelligence (AI) organization headquartered in San Francisco, California. It aims to develop \"safe and beneficial\"�..."}
+{"url": "https://www.linkedin.com/company/openai", "title": "OpenAI - LinkedIn", "description": "May 1, 2025"}
+
+===== 2025-09-05T23:09:50.050502Z Query: 'latest AI regulation news' =====
+{"url": "https://www.ncsl.org/technology-and-communication/artificial-intelligence-2025-legislation", "title": "Summary of Artificial Intelligence 2025 Legislation", "description": "This webpage covers key legislation introduced during the 2025 legislative session related to AI issues generally."}
+{"url": "https://www.whitecase.com/insight-our-thinking/ai-watch-global-regulatory-tracker-united-states", "title": "AI Watch: Global regulatory tracker - United States | White & Case LLP", "description": "Jul 21, 2025"}
+{"url": "https://www.callaborlaw.com/entry/new-ai-laws-may-go-into-effect-as-early-as-july-1-2025", "title": "New AI Laws May Go Into Effect As Early As July 1, 2025", "description": "Jul 1, 2025"}
+
+===== 2025-09-05T23:09:50.525522Z Query: 'python async best practices' =====
+{"url": "https://discuss.python.org/t/asyncio-best-practices/12576", "title": "Asyncio best practices - Async-SIG - Discussions on Python.org", "description": "Dec 16, 2021"}
+{"url": "https://realpython.com/async-io-python/", "title": "Python's asyncio: A Hands-On Walkthrough - Real Python", "description": "Jul 30, 2025"}
+{"url": "https://medium.com/simform-engineering/asynchronous-programming-in-python-9ed85d5ed8a1", "title": "Unlocking the Power of Asynchronous Programming in Python", "description": "May 18, 2023"}
+
+===== 2025-09-05T23:09:51.162889Z Query: 'global economic outlook 2025' =====
+{"url": "https://www.imf.org/en/Publications/WEO/Issues/2025/07/29/world-economic-outlook-update-july-2025", "title": "World Economic Outlook Update, July 2025: Global Economy", "description": "Jul 29, 2025"}
+{"url": "https://thedocs.worldbank.org/en/doc/8bf0b62ec6bcb886d97295ad930059e9-0050012025/original/GEP-June-2025.pdf", "title": "[PDF] Global Economic Prospects -- June 2025 - The World Bank", "description": "Jun 5, 2025"}
+{"url": "https://www.pwc.com/mt/en/publications/economic-outlook/2025-q2.html", "title": "Economic Outlook 2025 - PwC", "description": "Global GDP growth stabilised at 2.8% in 2024 but is projected to decline to 2.6% in 2025 and 2026 due to geopolitical tensions and rising protectionism."}
+
+===== 2025-09-05T23:09:51.622820Z Query: 'climate change adaptation technologies' =====
+{"url": "https://www.weforum.org/stories/2024/02/ai-climate-adaptation-technologies/", "title": "6 technologies to help the world adapt to climate change", "description": "Feb 8, 2024"}
+{"url": "https://unfccc.int/resource/docs/publications/tech_for_adaptation_06.pdf", "title": "[PDF] TECHNOLOGIES FOR ADAPTATION TO CLIMATE CHANGE", "description": "The convention envisaged two main strategies to address global warming: mitigation and adaptation. mitigation involves finding ways to slow the emissions of�..."}
+{"url": "https://tech-action.unepccc.org/wp-content/uploads/sites/2/2021/04/report-on-taxonomy-of-climate-change-adaptation-technology-including-factsheets-finalbrief-tna-adaptation-taxonomy.pdf", "title": "[PDF] Taxonomy of Climate Change Adaptation Technology", "description": "The Technology Needs Assessments (TNA) seeks to promote the transfer of environment friendly technologies and know-how by forming a portfolio of climate�..."}
+
+===== 2025-09-05T23:16:18.075844Z Query: 'openai' =====
+{"url": "https://openai.com/", "title": "OpenAI", "description": "We believe our research will eventually lead to artificial general intelligence, a system that can solve human-level problems. Building safe and beneficial�..."}
+{"url": "https://en.wikipedia.org/wiki/OpenAI", "title": "OpenAI - Wikipedia", "description": "OpenAI, Inc. is an American artificial intelligence (AI) organization headquartered in San Francisco, California. It aims to develop \"safe and beneficial\"�..."}
+{"url": "https://www.linkedin.com/company/openai", "title": "OpenAI - LinkedIn", "description": "May 1, 2025"}
+
+===== 2025-09-05T23:16:18.971858Z Query: 'latest India-USA trade war developments' =====
+{"url": "https://www.youtube.com/watch?v=55LR6YyPxmM", "title": "Trump Tariffs LIVE: Trump Targets India Over Trade & Tariffs | N18G", "description": "16 hours ago"}
+{"url": "https://www.aljazeera.com/news/2025/8/30/india-will-not-bow-down-to-us-after-steep-tariffs-trade-minister-says", "title": "India will not 'bow down' to US after steep tariffs, trade minister says", "description": "7 days ago"}
+{"url": "https://finance.yahoo.com/news/live/trump-tariffs-live-updates-us-cuts-de-minimis-tariff-as-china-lifts-boeing-ban-191201942.html", "title": "Trump slams India, calls trade relationship a 'disaster' - Yahoo Finance", "description": "4 days ago"}
+
+===== 2025-09-05T23:16:19.496440Z Query: 'latest China-Russia-India relations and trade dynamics' =====
+{"url": "https://merics.org/en/comment/chinas-meeting-india-and-russia-was-about-more-trump", "title": "China's meeting with India and Russia was about more than Trump", "description": "4 days ago"}
+{"url": "https://www.thedailystar.net/opinion/views/news/the-uneasy-geometry-us-china-india-russia-relations-3978686", "title": "The uneasy geometry of US-China-India-Russia relations", "description": "18 hours ago"}
+{"url": "https://thelogicalindian.com/weve-lost-india-and-russia-to-darkest-china-trump-reacts-after-sco-summit/", "title": "\"We've Lost India and Russia to Darkest China\": Trump Reacts After ...", "description": "11 hours ago"}
+
+===== 2025-09-05T23:16:19.966282Z Query: 'global economic outlook 2025' =====
+{"url": "https://www.imf.org/en/Publications/WEO/Issues/2025/07/29/world-economic-outlook-update-july-2025", "title": "World Economic Outlook Update, July 2025: Global Economy", "description": "Jul 29, 2025"}
+{"url": "https://thedocs.worldbank.org/en/doc/8bf0b62ec6bcb886d97295ad930059e9-0050012025/original/GEP-June-2025.pdf", "title": "[PDF] Global Economic Prospects -- June 2025 - The World Bank", "description": "Jun 5, 2025"}
+{"url": "https://www.pwc.com/mt/en/publications/economic-outlook/2025-q2.html", "title": "Economic Outlook 2025 - PwC", "description": "Global GDP growth stabilised at 2.8% in 2024 but is projected to decline to 2.6% in 2025 and 2026 due to geopolitical tensions and rising protectionism."}
+
+===== 2025-09-05T23:16:20.495750Z Query: 'Indian economy growth projections for 2025 and beyond' =====
+{"url": "https://www.deloitte.com/us/en/insights/topics/economy/asia-pacific/india-economic-outlook.html", "title": "India economic outlook, August 2025 - Deloitte", "description": "Aug 5, 2025"}
+{"url": "https://www.forbes.com/sites/sarwantsingh/2025/07/14/indias-economic-juggernaut-on-way-to-becoming-the-3rd-largest-economy/", "title": "India's Economic Juggernaut On Way To Becoming The 3rd Largest ...", "description": "Jul 14, 2025"}
+{"url": "https://www.oecd.org/en/publications/2025/06/oecd-economic-outlook-volume-2025-issue-1_1fd979a8/full-report/india_f1029fca.html", "title": "India: OECD Economic Outlook, Volume 2025 Issue 1", "description": "Jun 3, 2025"}
+
+===== 2025-09-06T02:47:56.182173Z Query: 'openai' =====
+{"url": "https://openai.com/", "title": "OpenAI", "description": "We believe our research will eventually lead to artificial general intelligence, a system that can solve human-level problems. Building safe and beneficial�..."}
+{"url": "https://en.wikipedia.org/wiki/OpenAI", "title": "OpenAI - Wikipedia", "description": "OpenAI, Inc. is an American artificial intelligence (AI) organization headquartered in San Francisco, California. It aims to develop \"safe and beneficial\"�..."}
+{"url": "https://www.linkedin.com/company/openai", "title": "OpenAI - LinkedIn", "description": "May 1, 2025"}
+
+===== 2025-09-06T02:47:57.278012Z Query: 'latest India-USA trade war developments' =====
+{"url": "https://www.youtube.com/watch?v=e_GPsnIg9P8", "title": "Trump Tariffs LIVE: Trump Targets India Over Trade & Tariffs | N18G", "description": "9 hours ago"}
+{"url": "https://www.aljazeera.com/news/2025/8/30/india-will-not-bow-down-to-us-after-steep-tariffs-trade-minister-says", "title": "India will not 'bow down' to US after steep tariffs, trade minister says", "description": "7 days ago"}
+{"url": "https://finance.yahoo.com/news/live/trump-tariffs-live-updates-us-cuts-de-minimis-tariff-as-china-lifts-boeing-ban-191201942.html", "title": "Trump slams India, calls trade relationship a 'disaster' - Yahoo Finance", "description": "4 days ago"}
+
+===== 2025-09-06T02:47:58.106812Z Query: 'latest China-Russia-India relations and trade dynamics' =====
+{"url": "https://merics.org/en/comment/chinas-meeting-india-and-russia-was-about-more-trump", "title": "China's meeting with India and Russia was about more than Trump", "description": "4 days ago"}
+{"url": "https://www.thedailystar.net/opinion/views/news/the-uneasy-geometry-us-china-india-russia-relations-3978686", "title": "The uneasy geometry of US-China-India-Russia relations", "description": "22 hours ago"}
+{"url": "https://www.validusrm.com/2025/09/03/us-tariffs-on-india-catalyzing-an-india-china-russia-alliance/", "title": "US Tariffs on India: Catalyzing an India-China-Russia Alliance?", "description": "2 days ago"}
+
+===== 2025-09-06T02:47:58.575594Z Query: 'global economic outlook 2025' =====
+{"url": "https://www.imf.org/en/Publications/WEO/Issues/2025/07/29/world-economic-outlook-update-july-2025", "title": "World Economic Outlook Update, July 2025: Global Economy", "description": "Jul 29, 2025"}
+{"url": "https://openknowledge.worldbank.org/bitstreams/10c22839-1055-468d-8ddd-8c928d76f2b4/download", "title": "[PDF] Global Economic Prospects -- June 2025", "description": "Jun 5, 2025"}
+{"url": "https://www.pwc.com/mt/en/publications/economic-outlook/2025-q2.html", "title": "Economic Outlook 2025 - PwC", "description": "Global GDP growth stabilised at 2.8% in 2024 but is projected to decline to 2.6% in 2025 and 2026 due to geopolitical tensions and rising protectionism."}
+
+===== 2025-09-06T02:47:59.003404Z Query: 'Indian economy growth projections for 2025 and beyond' =====
+{"url": "https://www.deloitte.com/us/en/insights/topics/economy/asia-pacific/india-economic-outlook.html", "title": "India economic outlook, August 2025 - Deloitte", "description": "Aug 5, 2025"}
+{"url": "https://www.forbes.com/sites/sarwantsingh/2025/07/14/indias-economic-juggernaut-on-way-to-becoming-the-3rd-largest-economy/", "title": "India's Economic Juggernaut On Way To Becoming The 3rd Largest ...", "description": "Jul 14, 2025"}
+{"url": "https://www.oecd.org/en/publications/2025/06/oecd-economic-outlook-volume-2025-issue-1_1fd979a8/full-report/india_f1029fca.html", "title": "India: OECD Economic Outlook, Volume 2025 Issue 1", "description": "Jun 3, 2025"}

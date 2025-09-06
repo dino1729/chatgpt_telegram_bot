@@ -9,7 +9,6 @@ import base64
 from io import BytesIO
 from pathlib import Path
 from datetime import datetime
-import openai
 
 import telegram
 import shutil
@@ -30,12 +29,13 @@ from telegram.ext import (
     AIORateLimiter,
     filters
 )
-from telegram.constants import ParseMode, ChatAction
+from telegram.constants import ParseMode
 
 import config
 import database
 import openai_utils
 import io
+from datetime import timezone
 
 # setup
 db = database.Database()
@@ -225,7 +225,8 @@ async def help_group_chat_handle(update: Update, context: CallbackContext):
 
 async def retry_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context): return
+    if await is_previous_message_not_answered_yet(update, context):
+        return
 
     user_id = update.message.from_user.id
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
@@ -257,7 +258,8 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
         _message = _message.replace("@" + context.bot.username, "").strip()
 
     await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context): return
+    if await is_previous_message_not_answered_yet(update, context):
+        return
 
     user_id = update.message.from_user.id
     chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
@@ -302,20 +304,52 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
             }[config.chat_modes[chat_mode]["parse_mode"]]
 
             chatgpt_instance = openai_utils.ChatGPT(model=current_model)
-            if config.enable_message_streaming:
-                if chat_mode != "internet_connected_assistant":
+
+            # --- Internet Connected Assistant: Single search then frozen context ---
+            if chat_mode == "internet_connected_assistant":
+                # Retrieve dialog for frozen context fields
+                dialog_doc = db.get_dialog(user_id)
+                search_context = dialog_doc.get("search_context") if dialog_doc else None
+                # Heuristic: treat very short acknowledgments as no-op if context exists
+                ack_terms = {"yes","yep","yeah","sure","ok","okay","thanks","thank you"}
+                if search_context and _message.lower().strip() in ack_terms:
+                    await update.message.reply_text("🔎 Context is frozen from the initial search. Ask a new question or /refresh_search to run a new search.", parse_mode=ParseMode.HTML)
+                    return
+
+                if search_context is None:
+                    # First query: perform internet search via existing pipeline (stream or not)
+                    if config.enable_message_streaming:
+                        gen = chatgpt_instance.send_internetmessage(_message, dialog_messages=dialog_messages, chat_mode="internet_connected_assistant")
+                    else:
+                        gen = chatgpt_instance.send_internetmessage(_message, dialog_messages=dialog_messages, chat_mode="internet_connected_assistant")
+                    # We will capture final answer later and also persist the raw snippets file if present
+                    # First-search phase (no frozen context yet)
+                else:
+                    # Subsequent turns: inject frozen context as a synthetic system preface
+                    injected_dialog = dialog_messages.copy()
+                    system_injection = {
+                        "user": "[SYSTEM CONTEXT INJECTION]",
+                        "bot": f"Frozen search context (query: '{dialog_doc.get('search_query')}', timestamp: {dialog_doc.get('search_timestamp')} UTC)\n---\n{search_context[:8000]}\n---\nNOTE: Data may be outdated; user must use /refresh_search for new retrieval."}
+                    # Prepend only once (model will still see earlier conversation after this synthetic pair)
+                    injected_dialog.insert(0, system_injection)
+                    if config.enable_message_streaming:
+                        gen = chatgpt_instance.send_message_stream(_message, dialog_messages=injected_dialog, chat_mode="assistant")
+                    else:
+                        answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = await chatgpt_instance.send_message(_message, dialog_messages=injected_dialog, chat_mode="assistant")
+                        async def fake_gen():
+                            yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
+                        gen = fake_gen()
+                    # Using frozen context injection path
+            else:
+                # Normal modes
+                if config.enable_message_streaming:
                     gen = chatgpt_instance.send_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
                 else:
-                    gen = chatgpt_instance.send_internetmessage(_message, dialog_messages=dialog_messages, chat_mode="internet_connected_assistant")
-            else:
-                if chat_mode != "internet_connected_assistant":
                     answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = await chatgpt_instance.send_message(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
                     async def fake_gen():
                         yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
-
                     gen = fake_gen()
-                else:
-                    gen = chatgpt_instance.send_internetmessage(_message, dialog_messages=dialog_messages, chat_mode="internet_connected_assistant")
+                # Standard non-internet mode path
 
             prev_answer = ""
             async for gen_item in gen:
@@ -360,6 +394,25 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
             )
 
             db.update_n_used_tokens(user_id, current_model, n_input_tokens, n_output_tokens)
+
+            # If this was the first internet search, persist frozen context
+            if chat_mode == "internet_connected_assistant":
+                dialog_doc = db.get_dialog(user_id)
+                if dialog_doc.get("search_context") is None:
+                    # Build search context: answer plus any snippet file if exists
+                    snippet_path = Path(config.UPLOAD_FOLDER) / "bing_results.txt"
+                    raw_snippets = ""
+                    if snippet_path.exists():
+                        try:
+                            raw_snippets = snippet_path.read_text(encoding='utf-8')[-12000:]  # cap size
+                        except Exception:
+                            raw_snippets = ""
+                    search_context_text = (answer + "\n\n[RAW SNIPPETS]\n" + raw_snippets).strip()
+                    db.set_dialog_attribute(user_id, "search_context", search_context_text)
+                    db.set_dialog_attribute(user_id, "search_query", _message)
+                    db.set_dialog_attribute(user_id, "search_timestamp", datetime.now(timezone.utc).isoformat(timespec='seconds'))
+                    # Inform user context frozen
+                    await update.message.reply_text("🧊 Search context frozen. Further questions will reuse this snapshot. Use /refresh_search to fetch new data.", parse_mode=ParseMode.HTML)
 
             #return answer
 
@@ -534,7 +587,8 @@ async def voicemessage_handle(update: Update, context: CallbackContext, message=
         _message = _message.replace("@" + context.bot.username, "").strip()
 
     await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context): return
+    if await is_previous_message_not_answered_yet(update, context):
+        return
 
     user_id = update.message.from_user.id
     chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
@@ -725,7 +779,8 @@ async def voice_message_handle(update: Update, context: CallbackContext):
 
 async def generate_image_handle(update: Update, context: CallbackContext, message=None):
     await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context): return
+    if await is_previous_message_not_answered_yet(update, context):
+        return
 
     user_id = update.message.from_user.id
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
@@ -765,7 +820,8 @@ async def generate_image_handle(update: Update, context: CallbackContext, messag
 async def generate_image_gpt_pro_handle(update: Update, context: CallbackContext, message=None):
     """Handle image generation and editing with GPT-Image-1 model"""
     await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context): return
+    if await is_previous_message_not_answered_yet(update, context):
+        return
 
     user_id = update.message.from_user.id
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
@@ -874,7 +930,8 @@ async def generate_image_gpt_pro_handle(update: Update, context: CallbackContext
 
 async def new_dialog_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context): return
+    if await is_previous_message_not_answered_yet(update, context):
+        return
 
     user_id = update.message.from_user.id
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
@@ -884,6 +941,20 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
 
     chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
     await update.message.reply_text(f"{config.chat_modes[chat_mode]['welcome_message']}", parse_mode=ParseMode.HTML)
+
+async def refresh_search_handle(update: Update, context: CallbackContext):
+    await register_user_if_not_exists(update, context, update.message.from_user)
+    if await is_previous_message_not_answered_yet(update, context):
+        return
+    user_id = update.message.from_user.id
+    db.set_user_attribute(user_id, "last_interaction", datetime.now())
+    chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
+    if chat_mode != "internet_connected_assistant":
+        await update.message.reply_text("⚠️ /refresh_search is only available in Internet Connected Assistant mode.", parse_mode=ParseMode.HTML)
+        return
+    # Clear frozen context for current dialog; next user message will trigger new search
+    db.clear_search_context(user_id)
+    await update.message.reply_text("♻️ Cleared frozen search context. Your next message will perform a new search.", parse_mode=ParseMode.HTML)
 
 async def cancel_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
@@ -935,7 +1006,8 @@ def get_chat_mode_menu(page_index: int):
 
 async def show_chat_modes_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context): return
+    if await is_previous_message_not_answered_yet(update, context):
+        return
 
     user_id = update.message.from_user.id
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
@@ -945,7 +1017,8 @@ async def show_chat_modes_handle(update: Update, context: CallbackContext):
 
 async def show_chat_modes_callback_handle(update: Update, context: CallbackContext):
      await register_user_if_not_exists(update.callback_query, context, update.callback_query.from_user)
-     if await is_previous_message_not_answered_yet(update.callback_query, context): return
+     if await is_previous_message_not_answered_yet(update.callback_query, context):
+         return
 
      user_id = update.callback_query.from_user.id
      db.set_user_attribute(user_id, "last_interaction", datetime.now())
@@ -1009,7 +1082,8 @@ def get_settings_menu(user_id: int):
 
 async def settings_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context): return
+    if await is_previous_message_not_answered_yet(update, context):
+        return
 
     user_id = update.message.from_user.id
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
@@ -1116,7 +1190,7 @@ async def error_handle(update: Update, context: CallbackContext) -> None:
             except telegram.error.BadRequest:
                 # answer has invalid characters, so we send it without parse_mode
                 await context.bot.send_message(update.effective_chat.id, message_chunk)
-    except:
+    except Exception:
         await context.bot.send_message(update.effective_chat.id, "Some error in error handler")
 
 async def post_init(application: Application):
@@ -1127,7 +1201,20 @@ async def post_init(application: Application):
         BotCommand("/balance", "Show balance"),
         BotCommand("/settings", "Show settings"),
         BotCommand("/help", "Show help message"),
+    BotCommand("/refresh_search", "Refresh internet search context"),
     ])
+    
+    # Test Firecrawl connectivity
+    import requests
+    try:
+        test_url = f"{config.firecrawl_base_url}/v2/search"
+        resp = requests.get(test_url, timeout=5)
+        logger.info(
+            "Firecrawl service reachable: url=%s status=%s", test_url, getattr(resp, 'status_code', 'n/a')
+        )
+    except Exception as e:
+        logger.warning(f"Firecrawl service not reachable at {config.firecrawl_base_url}: {e}")
+        logger.info("Bot will use fallback search methods if available")
 
 def run_bot() -> None:
     application = (
@@ -1157,6 +1244,7 @@ def run_bot() -> None:
     application.add_handler(CommandHandler("retry", retry_handle, filters=user_filter))
     application.add_handler(CommandHandler("new", new_dialog_handle, filters=user_filter))
     application.add_handler(CommandHandler("cancel", cancel_handle, filters=user_filter))
+    application.add_handler(CommandHandler("refresh_search", refresh_search_handle, filters=user_filter))
 
     if FFMPEG_AVAILABLE:
         application.add_handler(MessageHandler(filters.VOICE & user_filter, voice_message_handle))

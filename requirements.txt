@@ -34,3 +34,4 @@ lxml_html_clean
 soundfile
 sounddevice
 gpt_researcher
+openai

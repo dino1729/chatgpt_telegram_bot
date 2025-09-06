@@ -27,6 +27,8 @@ services:
       - mongo
     volumes:
       - ./:/app
+    extra_hosts:
+      - "firecrawl-pi:10.0.0.107"
 
   mongo_express:
     container_name: telegram-mongo-express
@@ -38,7 +40,7 @@ services:
       - 127.0.0.1:${MONGO_EXPRESS_PORT:-8082}:${MONGO_EXPRESS_PORT:-8082}
     environment:
       - ME_CONFIG_MONGODB_SERVER=mongo
-      - ME_CONFIG_MONGODB_PORT=${MONGODB_PORT:-27017}
+      - ME_CONFIG_MONGODB_PORT=${MONGODB_PORT:-27018}
       - ME_CONFIG_MONGODB_ENABLE_ADMIN=false
       - ME_CONFIG_MONGODB_AUTH_DATABASE=chatgpt_telegram_bot
       - ME_CONFIG_BASICAUTH_USERNAME=${MONGO_EXPRESS_USERNAME:-username}

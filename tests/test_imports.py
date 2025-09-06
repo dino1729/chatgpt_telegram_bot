@@ -15,13 +15,17 @@ def test_basic_imports():
         
         # Test individual helper modules with minimal dependencies
         print("✓ Testing helper_functions package...")
-        import bot.helper_functions
-        
-        print("✓ Testing __init__.py imports...")
-        from bot.helper_functions import (
-            ConfigManager, TokenCounter, MessageFormatter, 
-            ModelProviders, SearchUtils, FileUtils
-        )
+        import importlib
+        hf_module = importlib.import_module("bot.helper_functions")
+        print("✓ helper_functions module loaded")
+        required_symbols = [
+            "ConfigManager", "TokenCounter", "MessageFormatter",
+            "ModelProviders", "SearchUtils", "FileUtils"
+        ]
+        missing = [s for s in required_symbols if not hasattr(hf_module, s)]
+        if missing:
+            raise AssertionError(f"Missing symbols: {missing}")
+        print("✓ All expected symbols present in helper_functions")
         
         print("✓ All basic imports successful!")
         return True
@@ -41,20 +45,19 @@ def test_class_instantiation():
         from bot.helper_functions import TokenCounter, MessageFormatter, FileUtils
         
         # Test token counter
-        token_counter = TokenCounter()
+        TokenCounter()  # noqa: F841
         print("✓ TokenCounter instantiated")
         
         # Test message formatter  
-        formatter = MessageFormatter()
+        MessageFormatter()  # noqa: F841
         print("✓ MessageFormatter instantiated")
         
         # Test file utils
-        file_utils = FileUtils()
+        FileUtils()  # noqa: F841
         print("✓ FileUtils instantiated")
-        
+
         return True
-        
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"✗ Class instantiation error: {e}")
         return False
 
@@ -93,7 +96,7 @@ if __name__ == "__main__":
     success &= test_class_instantiation() 
     success &= test_backward_compatibility()
     
-    print(f"\n=== Test Results ===")
+    print("\n=== Test Results ===")
     if success:
         print("🎉 All tests passed! Refactoring appears successful.")
     else:

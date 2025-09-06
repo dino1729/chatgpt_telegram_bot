@@ -2,9 +2,7 @@
 Image generation and processing utilities
 """
 import base64
-import json
 import os
-import subprocess
 import tempfile
 from io import BytesIO
 from openai import OpenAI, AzureOpenAI as OpenAIAzure
@@ -71,7 +69,6 @@ async def generate_images_gpt_image_1(prompt, n_images=1, size="1024x1024", conf
     Returns:
         List of image URLs (as data URLs with base64)
     """
-    import os
     
     # Import config_manager if not provided
     if config_manager is None:
@@ -137,7 +134,6 @@ async def edit_image_gpt_image_1(image, prompt, mask=None, n_images=1, size="102
     Returns:
         List of edited image URLs (as data URLs with base64)
     """
-    import os
     from PIL import Image as PILImage
     
     def _ensure_png(path: str) -> str:
@@ -261,14 +257,12 @@ async def is_content_acceptable(prompt, config_manager=None):
     # uses deprecated API. Here's a placeholder for the corrected version.
     # The actual implementation would depend on the current OpenAI moderation API
     try:
-        client = OpenAIAzure(
+        _ = OpenAIAzure(  # noqa: F841 (placeholder client until moderation implemented)
             api_key=config_manager.azure_api_key,
             azure_endpoint=config_manager.azure_api_base,
             api_version=config_manager.azure_chatapi_version,
         )
-        # This would need to be updated to use the current moderation endpoint
-        # r = client.moderations.create(input=prompt)
-        # return not any(r.results[0].categories.values())
-        return True  # Placeholder - implement proper moderation check
+        # TODO: Implement actual moderation call once stable API confirmed
+        return True
     except Exception:
         return True  # Default to acceptable if check fails

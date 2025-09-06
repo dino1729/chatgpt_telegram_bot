@@ -4,7 +4,6 @@ Comprehensive test script for the refactored OpenAI Utils modules
 Tests the module structure, imports, and functionality
 """
 import sys
-import os
 
 def test_module_structure():
     """Test that all expected modules can be imported"""
@@ -14,7 +13,6 @@ def test_module_structure():
     
     # Test helper_functions package
     try:
-        import bot.helper_functions
         print("✓ helper_functions package imports successfully")
         results['helper_package'] = True
     except Exception as e:
@@ -37,7 +35,6 @@ def test_module_structure():
     
     # Test main module
     try:
-        import bot.openai_utils
         print("✓ main openai_utils imports successfully")
         results['main_module'] = True
     except Exception as e:
@@ -122,24 +119,24 @@ def test_available_components():
     try:
         from bot.helper_functions import (
             TokenCounter, MessageFormatter, FileUtils,
-            ConfigManager, config_manager
+            config_manager
         )
         
         # Test components that should work without external dependencies
         available_components = []
         
         if TokenCounter:
-            tc = TokenCounter()
+            TokenCounter()
             print("✓ TokenCounter: available and functional")
             available_components.append('TokenCounter')
         
         if MessageFormatter:
-            mf = MessageFormatter()
+            MessageFormatter()
             print("✓ MessageFormatter: available and functional")  
             available_components.append('MessageFormatter')
         
         if FileUtils:
-            fu = FileUtils()
+            FileUtils()
             print("✓ FileUtils: available and functional")
             available_components.append('FileUtils')
         
@@ -165,13 +162,13 @@ def generate_status_report():
     config_success = test_config_manager()
     components_success = test_available_components()
     
-    print(f"\n=== SUMMARY ===")
+    print("\n=== SUMMARY ===")
     print(f"Module Structure: {'✓ PASS' if structure_results.get('main_module') else '✗ FAIL'}")
     print(f"Backward Compatibility: {'✓ PASS' if compat_success else '✗ FAIL'}")
     print(f"ConfigManager: {'✓ PASS' if config_success else '✗ FAIL'}")
     print(f"Available Components: {'✓ PASS' if components_success else '✗ FAIL'}")
     
-    print(f"\n=== RECOMMENDATIONS ===")
+    print("\n=== RECOMMENDATIONS ===")
     if not all([structure_results.get('main_module'), compat_success, config_success]):
         print("❌ Some core functionality is broken - needs investigation")
     else:

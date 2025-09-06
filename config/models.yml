@@ -1,69 +1,61 @@
-available_text_models: ["gpt-4o", "o4-mini", "model-router", "gemini-2.5-flash-preview-05-20"]
+available_text_models: ["gpt-5-chat", "gpt-5", "model-router", "gemini-2.5-flash"]
 
 info:
 
-  gpt-4o:
+  gpt-5-chat:
     type: chat_completion
-    name: G4o
-    description: gpt-4o offers a shift in how AI models interact with multimodal inputs. By seamlessly combining text, images, and audio, gpt-4o provides a richer, more engaging user experience. Matching the intelligence of gpt-4o turbo, it is remarkably more efficient, delivering text at twice the speed and at half the cost. Additionally, GPT-4o exhibits the highest vision performance and excels in non-English languages compared to previous OpenAI models. gpt-4o is engineered for speed and efficiency. Its advanced ability to handle complex queries with minimal resources can translate into cost savings and performance.
-
-    price_per_1000_input_tokens: 0.005  # Corrected (was 0.03)
-    price_per_1000_output_tokens: 0.015 # Corrected (was 0.06)
-
-    scores:
-      Smart: 4
+    name: GPT-5 Chat
+    description: High‑conversation fidelity chat-optimized GPT‑5 variant. Tuned for multi‑turn dialogue, tool calling, and low hallucination rate. (Provisional metadata – adjust when official specs confirmed.)
+    price_per_1000_input_tokens: 0.010  # Placeholder; update with official pricing
+    price_per_1000_output_tokens: 0.030 # Placeholder; update with official pricing
+    scores:  # Relative, 1–5 scale
+      Smart: 5
       Fast: 4
-      Cheap: 4
+      Cheap: 3
 
-  o4-mini:
+  gpt-5:
     type: chat_completion
-    name: o4-mini
-    description: o4-mini includes significant improvements on quality and safety while supporting the existing features of o3-mini and delivering comparable or better performance through its integration and support of the newest APIs and reasoning features. The most efficient reasoning model in the o model series, well suited for agentic solutions.
-
-    price_per_1000_input_tokens: 0.0011 # Corrected (was 0.01)
-    price_per_1000_output_tokens: 0.0044 # Corrected (was 0.03)
-
+    name: GPT-5
+    description: General-purpose GPT‑5 base model for reasoning, coding, and complex analytical tasks. (Provisional metadata – update once finalized.)
+    price_per_1000_input_tokens: 0.012  # Placeholder
+    price_per_1000_output_tokens: 0.036 # Placeholder
     scores:
-      smart: 5
-      fast: 2
-      cheap: 3
-      
+      Smart: 5
+      Fast: 3
+      Cheap: 2
+
   model-router:
     type: chat_completion
     name: model-router
-    description: Model Router dynamically selects the optimal large language model(LLM) for a specific query or task in real time. By evaluating factors like query complexity, cost, and performance, it efficiently routes requests to the most suitable model, ensuring high quality results while minimizing costs. In our tests comparing use of Model Router versus use of GPT-4.1 only, we saw up-to 60% cost savings with similar accuracy.
-
-    price_per_1000_input_tokens: 0.003  # Unverified - This seems to be a placeholder or specific vendor pricing. Standard "model-router" itself from major providers may not have a direct per-token cost for routing, but rather for the underlying models used.
-    price_per_1000_output_tokens: 0.004 # Unverified - See above.
-
+    description: Dynamically selects an optimal underlying model per request (cost, latency, complexity). Pricing reflects averaged/estimated blended usage; adjust to your deployment.
+    price_per_1000_input_tokens: 0.003  # Approximate/placeholder
+    price_per_1000_output_tokens: 0.004 # Approximate/placeholder
     scores:
       Smart: 3
       Fast: 4
       Cheap: 5
 
-  gemini-2.5-flash-preview-05-20:
+  gemini-2.5-flash:
     type: chat_completion
-    name: Gem
-    description: Gemini 2.5 Flash is a powerful multimodal model that excels in reasoning, coding, and complex tasks. It supports text, images, and audio inputs, making it versatile for various applications. With its advanced capabilities, Gemini 2.5 Flash is designed to handle intricate queries and deliver high-quality responses across multiple modalities.
-
-    price_per_1000_input_tokens: 0.00015 # Corrected (was 0.02) - for non-thinking variant
-    price_per_1000_output_tokens: 0.0006  # Corrected (was 0.02) - for non-thinking variant
-
+    name: Gemini 2.5 Flash
+    description: Fast multimodal Gemini Flash 2.5 variant supporting text, images, and lightweight audio. Suited for low‑latency, high‑throughput tasks.
+    price_per_1000_input_tokens: 0.00015 # Non-thinking tier
+    price_per_1000_output_tokens: 0.0006  # Non-thinking tier
     scores:
       Smart: 3
       Fast: 5
       Cheap: 5
 
+  # Non-text models (retained)
   dall-e-3:
     type: image
-    price_per_1_image: 0.040  # Corrected (was 0.018 for 512x512, which is DALL-E 2 pricing). This is for standard 1024x1024.
+    price_per_1_image: 0.040
 
   gpt-image-1:
     type: image
     name: GPT-Image-1
-    description: GPT-Image-1 is OpenAI's latest and most advanced image generation and editing model. It offers exceptional image quality, improved prompt adherence, and advanced editing capabilities including inpainting, outpainting, and image-to-image transformations. Supports both generation and editing workflows with superior understanding of complex prompts and artistic styles.
-    price_per_1_image: 0.17  # Estimated pricing for GPT-Image-1 (likely higher than DALL-E 3 due to advanced capabilities)
-
+    description: Advanced image generation & editing (in/out-paint, image-to-image). High fidelity and prompt adherence.
+    price_per_1_image: 0.170  # Placeholder/estimated
     scores:
       Smart: 5
       Fast: 1

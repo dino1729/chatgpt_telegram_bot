@@ -13,7 +13,6 @@ print("=== DEBUGGING IMPORTS ===")
 # Test 1: Basic config import
 print("\n1. Testing config import...")
 try:
-    import config
     print("✓ config imported successfully")
 except Exception as e:
     print(f"✗ config import failed: {e}")
@@ -21,7 +20,7 @@ except Exception as e:
 # Test 2: Config manager import  
 print("\n2. Testing config_manager import...")
 try:
-    from helper_functions.config_manager import ConfigManager, get_config_manager
+    from helper_functions.config_manager import get_config_manager
     print("✓ config_manager imported successfully")
     
     cm = get_config_manager()
@@ -38,7 +37,7 @@ try:
     print("✓ ChatGPT imported successfully")
     
     # Try to create an instance
-    chat = ChatGPT(model="gpt-4o")
+    chat = ChatGPT(model="gpt-5-chat")
     print("✓ ChatGPT instance created successfully")
 except Exception as e:
     print(f"✗ ChatGPT import/creation failed: {e}")
@@ -53,7 +52,7 @@ try:
     print(f"  ChatGPT available: {openai_utils.ChatGPT is not None}")
     
     if openai_utils.ChatGPT is not None:
-        chat_instance = openai_utils.ChatGPT(model="gpt-4o")
+        chat_instance = openai_utils.ChatGPT(model="gpt-5-chat")
         print("✓ ChatGPT instance created via openai_utils")
     else:
         print("✗ ChatGPT is None in openai_utils")
